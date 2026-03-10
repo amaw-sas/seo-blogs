@@ -1,0 +1,385 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Sites ───────────────────────────────────────────────────
+
+model Site {
+  id                   String   @id @default(cuid())
+  domain               String   @unique
+  name                 String
+  platform             String   // "wordpress" | "custom"
+  apiUrl               String?  @map("api_url")
+  apiUser              String?  @map("api_user")
+  apiPassword          String?  @map("api_password")
+  postsPerDay          Int      @default(1) @map("posts_per_day")
+  minWords             Int      @default(1500) @map("min_words")
+  maxWords             Int      @default(2500) @map("max_words")
+  windowStart          Int      @default(7) @map("window_start") // hour 0-23
+  windowEnd            Int      @default(12) @map("window_end")
+  conversionUrl        String?  @map("conversion_url")
+  authoritativeSources String[] @map("authoritative_sources")
+  active               Boolean  @default(true)
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  posts         Post[]
+  keywords      Keyword[]
+  tags          Tag[]
+  categories    Category[]
+  clusters      ContentCluster[]
+  siteHolidays  SiteHoliday[]
+  regulations   Regulation[]
+  publishLogs   PublishLog[]
+  analytics     Analytics[]
+  abTests       SiteAbTest[]
+  notifications Notification[]
+
+  @@map("sites")
+}
+
+// ─── Posts ────────────────────────────────────────────────────
+
+enum PostStatus {
+  draft
+  review
+  published
+  archived
+  error
+}
+
+model Post {
+  id                  String     @id @default(cuid())
+  siteId              String     @map("site_id")
+  title               String
+  slug                String
+  contentHtml         String     @map("content_html") @db.Text
+  contentMarkdown     String?    @map("content_markdown") @db.Text
+  metaTitle           String?    @map("meta_title")
+  metaDescription     String?    @map("meta_description")
+  keyword             String
+  keywordDensity      Float?     @map("keyword_density")
+  keywordFrequency    Int?       @map("keyword_frequency")
+  keywordDistribution Json?      @map("keyword_distribution")
+  readabilityScore    Float?     @map("readability_score")
+  seoScore            Int?       @map("seo_score")
+  wordCount           Int?       @map("word_count")
+  charCount           Int?       @map("char_count")
+  readingTimeMinutes  Float?     @map("reading_time_minutes")
+  generationCost      Float?     @map("generation_cost")
+  status              PostStatus @default(draft)
+  externalPostId      String?    @map("external_post_id")
+  scheduledAt         DateTime?  @map("scheduled_at")
+  publishedAt         DateTime?  @map("published_at")
+  categoryId          String?    @map("category_id")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+
+  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  category     Category?     @relation(fields: [categoryId], references: [id])
+  versions     PostVersion[]
+  images       PostImage[]
+  links        PostLink[]
+  postTags     PostTag[]
+  clusterPosts ClusterPost[]
+  abTests      SiteAbTest[]
+  analytics    Analytics[]
+
+  @@unique([siteId, slug])
+  @@index([siteId, status])
+  @@index([siteId, publishedAt])
+  @@map("posts")
+}
+
+model PostVersion {
+  id          String   @id @default(cuid())
+  postId      String   @map("post_id")
+  contentHtml String   @map("content_html") @db.Text
+  changedBy   String?  @map("changed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_versions")
+}
+
+// ─── Keywords ────────────────────────────────────────────────
+
+enum KeywordStatus {
+  pending
+  used
+  skipped
+}
+
+model Keyword {
+  id         String        @id @default(cuid())
+  siteId     String        @map("site_id")
+  phrase     String
+  status     KeywordStatus @default(pending)
+  priority   Int           @default(0)
+  parentId   String?       @map("parent_id")
+  skipReason String?       @map("skip_reason")
+  trendScore Float?        @map("trend_score")
+  createdAt  DateTime      @default(now()) @map("created_at")
+
+  site     Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  parent   Keyword?  @relation("KeywordExpansion", fields: [parentId], references: [id])
+  children Keyword[] @relation("KeywordExpansion")
+
+  @@unique([siteId, phrase])
+  @@index([siteId, status])
+  @@map("keywords")
+}
+
+// ─── Tags & Categories ───────────────────────────────────────
+
+model Tag {
+  id     String @id @default(cuid())
+  siteId String @map("site_id")
+  name   String
+  slug   String
+
+  site     Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  postTags PostTag[]
+
+  @@unique([siteId, slug])
+  @@map("tags")
+}
+
+model PostTag {
+  postId String @map("post_id")
+  tagId  String @map("tag_id")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Category {
+  id     String @id @default(cuid())
+  siteId String @map("site_id")
+  name   String
+  slug   String
+
+  site  Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  posts Post[]
+
+  @@unique([siteId, slug])
+  @@map("categories")
+}
+
+// ─── Post Assets ─────────────────────────────────────────────
+
+model PostImage {
+  id       String @id @default(cuid())
+  postId   String @map("post_id")
+  url      String
+  altText  String @map("alt_text")
+  position Int    @default(0)
+  width    Int?
+  height   Int?
+  fileSize Int?   @map("file_size")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_images")
+}
+
+enum LinkType {
+  internal
+  external
+  conversion
+}
+
+enum LinkStatus {
+  active
+  broken
+}
+
+model PostLink {
+  id         String     @id @default(cuid())
+  postId     String     @map("post_id")
+  url        String
+  anchorText String     @map("anchor_text")
+  type       LinkType
+  status     LinkStatus @default(active)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@map("post_links")
+}
+
+// ─── Content Clusters ────────────────────────────────────────
+
+model ContentCluster {
+  id           String @id @default(cuid())
+  siteId       String @map("site_id")
+  name         String
+  pillarKeyword String @map("pillar_keyword")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  clusterPosts ClusterPost[]
+
+  @@map("content_clusters")
+}
+
+model ClusterPost {
+  clusterId String  @map("cluster_id")
+  postId    String  @map("post_id")
+  isPillar  Boolean @default(false) @map("is_pillar")
+
+  cluster ContentCluster @relation(fields: [clusterId], references: [id], onDelete: Cascade)
+  post    Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@id([clusterId, postId])
+  @@map("cluster_posts")
+}
+
+// ─── Holidays ────────────────────────────────────────────────
+
+enum HolidayType {
+  national
+  commercial
+  lunar
+  custom
+}
+
+model Holiday {
+  id      String      @id @default(cuid())
+  date    DateTime    @db.Date
+  name    String
+  country String      @default("CO")
+  type    HolidayType @default(national)
+
+  siteHolidays SiteHoliday[]
+
+  @@unique([date, name, country])
+  @@map("holidays")
+}
+
+model SiteHoliday {
+  siteId           String @map("site_id")
+  holidayId        String @map("holiday_id")
+  daysInAdvance    Int    @default(15) @map("days_in_advance")
+
+  site    Site    @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  holiday Holiday @relation(fields: [holidayId], references: [id], onDelete: Cascade)
+
+  @@id([siteId, holidayId])
+  @@map("site_holidays")
+}
+
+// ─── Regulations ─────────────────────────────────────────────
+
+model Regulation {
+  id          String   @id @default(cuid())
+  siteId      String   @map("site_id")
+  type        String   // e.g. "pico_y_placa"
+  data        Json
+  validFrom   DateTime @map("valid_from")
+  validUntil  DateTime? @map("valid_until")
+  sourceUrl   String?  @map("source_url")
+  autoMonitor Boolean  @default(false) @map("auto_monitor")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@map("regulations")
+}
+
+// ─── Publish Logs ────────────────────────────────────────────
+
+model PublishLog {
+  id           String   @id @default(cuid())
+  siteId       String   @map("site_id")
+  postId       String?  @map("post_id")
+  eventType    String   @map("event_type")
+  status       String   // "success" | "failed"
+  errorMessage String?  @map("error_message")
+  costTokens   Float?   @map("cost_tokens")
+  costImages   Float?   @map("cost_images")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId, createdAt])
+  @@index([eventType])
+  @@map("publish_logs")
+}
+
+// ─── Analytics ───────────────────────────────────────────────
+
+model Analytics {
+  id          String   @id @default(cuid())
+  siteId      String   @map("site_id")
+  postId      String   @map("post_id")
+  date        DateTime @db.Date
+  views       Int      @default(0)
+  clicks      Int      @default(0)
+  impressions Int      @default(0)
+  position    Float?
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, date])
+  @@map("analytics")
+}
+
+// ─── Users ───────────────────────────────────────────────────
+
+model User {
+  id                String    @id @default(cuid())
+  email             String    @unique
+  passwordHash      String    @map("password_hash")
+  resetToken        String?   @map("reset_token")
+  resetTokenExpires DateTime? @map("reset_token_expires")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+// ─── A/B Tests ───────────────────────────────────────────────
+
+model SiteAbTest {
+  id         String  @id @default(cuid())
+  siteId     String  @map("site_id")
+  postId     String  @map("post_id")
+  variants   Json
+  ctrByVariant Json? @map("ctr_by_variant")
+  winner     String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("site_ab_tests")
+}
+
+// ─── Notifications ───────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  siteId    String?  @map("site_id")
+  type      String
+  message   String   @db.Text
+  channel   String   // "email" | "telegram"
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site? @relation(fields: [siteId], references: [id], onDelete: SetNull)
+
+  @@map("notifications")
+}
