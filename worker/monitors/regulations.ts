@@ -4,7 +4,7 @@
  * generation when updates are detected.
  */
 
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { runPipeline } from "../pipeline";
 
 const prisma = new PrismaClient();
@@ -168,7 +168,7 @@ async function log(
 ): Promise<void> {
   try {
     await prisma.publishLog.create({
-      data: { siteId, eventType, status, metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined },
+      data: { siteId, eventType, status, metadata: (metadata as unknown) ?? undefined },
     });
   } catch {
     console.error(`[RegulationMonitor] Failed to log: ${eventType} - ${status}`);

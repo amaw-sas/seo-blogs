@@ -3,7 +3,7 @@
  * Compiles weekly metrics across all sites and sends via configured channels.
  */
 
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { sendNotification } from "../../src/lib/notifications";
 
 const prisma = new PrismaClient();
@@ -150,7 +150,8 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
     },
   });
 
-  const postMap = new Map(topPostDetails.map((p: { id: string; title: string; site: { name: string } }) => [p.id, p]));
+  type PostDetail = { id: string; title: string; site: { name: string } };
+  const postMap = new Map<string, PostDetail>(topPostDetails.map((p: PostDetail) => [p.id, p]));
   const topPosts = topPostsData.map((row: { postId: string; _sum: { clicks: number | null } }) => {
     const post = postMap.get(row.postId);
     return {
@@ -213,7 +214,7 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
         siteId: logSiteId,
         eventType: "weekly_report",
         status: "success",
-        metadata: reportData as unknown as Prisma.InputJsonValue,
+        metadata: reportData as unknown as undefined,
       },
     });
   }

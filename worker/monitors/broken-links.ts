@@ -4,7 +4,7 @@
  * and marks broken ones in the database.
  */
 
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -160,7 +160,7 @@ async function log(
         siteId,
         eventType,
         status,
-        metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+        metadata: (metadata as unknown) ?? undefined,
       },
     });
   } catch {

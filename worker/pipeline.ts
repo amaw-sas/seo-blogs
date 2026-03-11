@@ -3,7 +3,7 @@
  * Orchestrates the full flow from keyword selection to published post.
  */
 
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import {
   generateOutline,
@@ -762,7 +762,7 @@ async function logStep(
         postId,
         eventType,
         status,
-        metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+        metadata: (metadata as unknown) ?? undefined,
       },
     });
   } catch {

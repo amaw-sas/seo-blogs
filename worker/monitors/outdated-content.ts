@@ -4,7 +4,7 @@
  * time-sensitive content, and broken links.
  */
 
-import { Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 import Anthropic from "@anthropic-ai/sdk";
 
 const prisma = new PrismaClient();
@@ -287,7 +287,7 @@ async function log(
 ): Promise<void> {
   try {
     await prisma.publishLog.create({
-      data: { siteId, eventType, status, metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined },
+      data: { siteId, eventType, status, metadata: (metadata as unknown) ?? undefined },
     });
   } catch {
     console.error(
