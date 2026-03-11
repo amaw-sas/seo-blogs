@@ -1,0 +1,30 @@
+import {
+  LayoutDashboard,
+  FileText,
+  Key,
+  Globe,
+  Network,
+  Calendar,
+  ScrollText,
+  BarChart3,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+
+export interface NavItem {
+  title: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+export const navItems: NavItem[] = [
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { title: "Posts", href: "/posts", icon: FileText },
+  { title: "Keywords", href: "/keywords", icon: Key },
+  { title: "Sitios", href: "/sites", icon: Globe },
+  { title: "Clusters", href: "/clusters", icon: Network },
+  { title: "Calendario", href: "/calendar", icon: Calendar },
+  { title: "Logs", href: "/logs", icon: ScrollText },
+  { title: "Estadísticas", href: "/stats", icon: BarChart3 },
+  { title: "Configuración", href: "/settings", icon: Settings },
+];

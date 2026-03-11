@@ -1,0 +1,28 @@
+FROM node:20-slim
+
+WORKDIR /app
+
+# Copy root package files for shared dependencies
+COPY package.json package-lock.json ./
+
+# Copy worker package files
+COPY worker/package.json ./worker/
+
+# Install root dependencies
+RUN npm ci --omit=dev
+
+# Install worker dependencies
+RUN cd worker && npm install --omit=dev
+
+# Copy source code needed by worker
+COPY src/ ./src/
+COPY worker/ ./worker/
+COPY prisma/ ./prisma/
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build worker
+RUN cd worker && npm run build
+
+CMD ["node", "worker/dist/index.js"]
