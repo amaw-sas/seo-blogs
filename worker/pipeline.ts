@@ -3,7 +3,7 @@
  * Orchestrates the full flow from keyword selection to published post.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
 import {
   generateOutline,
@@ -333,7 +333,7 @@ export async function runPipeline(
     const categorization = await categorizePost(
       post.title,
       keyword.phrase,
-      existingCategories.map((c) => ({ slug: c.slug, name: c.name })),
+      existingCategories.map((c: { slug: string; name: string }) => ({ slug: c.slug, name: c.name })),
     );
 
     let categoryId: string;
@@ -349,7 +349,7 @@ export async function runPipeline(
       categoryId = newCategory.id;
     } else {
       const existing = existingCategories.find(
-        (c) => c.slug === categorization.categorySlug,
+        (c: { id: string; slug: string }) => c.slug === categorization.categorySlug,
       );
       categoryId = existing?.id ?? existingCategories[0]?.id ?? "";
     }
@@ -762,7 +762,7 @@ async function logStep(
         postId,
         eventType,
         status,
-        metadata: metadata ?? undefined,
+        metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
   } catch {

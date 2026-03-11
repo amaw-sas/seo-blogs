@@ -25,4 +25,4 @@ RUN npx prisma generate
 # Build worker
 RUN cd worker && npm run build
 
-CMD ["node", "worker/dist/index.js"]
+CMD ["node", "worker/dist/worker/index.js"]

@@ -4,7 +4,7 @@
  * time-sensitive content, and broken links.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import Anthropic from "@anthropic-ai/sdk";
 
 const prisma = new PrismaClient();
@@ -114,8 +114,8 @@ export async function checkOutdatedContent(
 
   // Create notifications for admin
   for (const item of outdated) {
-    const post = oldPosts.find((p) => p.id === item.postId) ??
-      recentPublished.find((p) => p.id === item.postId);
+    const post = oldPosts.find((p: { id: string }) => p.id === item.postId) ??
+      recentPublished.find((p: { id: string }) => p.id === item.postId);
 
     const notifSiteId = post?.siteId ?? siteId;
 
@@ -287,7 +287,7 @@ async function log(
 ): Promise<void> {
   try {
     await prisma.publishLog.create({
-      data: { siteId, eventType, status, metadata: metadata ?? undefined },
+      data: { siteId, eventType, status, metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined },
     });
   } catch {
     console.error(

@@ -3,7 +3,7 @@
  * Compiles weekly metrics across all sites and sends via configured channels.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { sendNotification } from "../../src/lib/notifications";
 
 const prisma = new PrismaClient();
@@ -54,7 +54,7 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
 
   // Posts published per site
   const postsPerSite = await Promise.all(
-    sites.map(async (site) => {
+    sites.map(async (site: { id: string; name: string; domain: string }) => {
       const [published, errors] = await Promise.all([
         prisma.post.count({
           where: {
@@ -83,7 +83,7 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
 
   // Keywords consumed vs remaining per site
   const keywordsPerSite = await Promise.all(
-    sites.map(async (site) => {
+    sites.map(async (site: { id: string; name: string }) => {
       const [consumed, remaining] = await Promise.all([
         prisma.keyword.count({
           where: {
@@ -140,7 +140,7 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
     take: 10,
   });
 
-  const topPostIds = topPostsData.map((p) => p.postId);
+  const topPostIds = topPostsData.map((p: { postId: string }) => p.postId);
   const topPostDetails = await prisma.post.findMany({
     where: { id: { in: topPostIds } },
     select: {
@@ -150,8 +150,8 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
     },
   });
 
-  const postMap = new Map(topPostDetails.map((p) => [p.id, p]));
-  const topPosts = topPostsData.map((row) => {
+  const postMap = new Map(topPostDetails.map((p: { id: string; title: string; site: { name: string } }) => [p.id, p]));
+  const topPosts = topPostsData.map((row: { postId: string; _sum: { clicks: number | null } }) => {
     const post = postMap.get(row.postId);
     return {
       postId: row.postId,
@@ -213,7 +213,7 @@ export async function generateWeeklyReport(): Promise<WeeklyReportData> {
         siteId: logSiteId,
         eventType: "weekly_report",
         status: "success",
-        metadata: reportData as unknown as Record<string, unknown>,
+        metadata: reportData as unknown as Prisma.InputJsonValue,
       },
     });
   }

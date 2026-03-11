@@ -4,7 +4,7 @@
  * pipeline with a holiday-themed keyword when a holiday is within range.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { runPipeline } from "../pipeline";
 
 const prisma = new PrismaClient();
@@ -113,7 +113,7 @@ async function log(
 ): Promise<void> {
   try {
     await prisma.publishLog.create({
-      data: { siteId, eventType, status, metadata: metadata ?? undefined },
+      data: { siteId, eventType, status, metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined },
     });
   } catch {
     console.error(`[HolidayMonitor] Failed to log: ${eventType} - ${status}`);

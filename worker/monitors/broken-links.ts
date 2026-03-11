@@ -4,14 +4,14 @@
  * and marks broken ones in the database.
  */
 
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const CONCURRENCY_LIMIT = 10;
 
-interface BrokenLinkSummary {
+export interface BrokenLinkSummary {
   checked: number;
   broken: number;
   fixed: number;
@@ -49,7 +49,7 @@ export async function checkBrokenLinks(
     const batch = links.slice(i, i + CONCURRENCY_LIMIT);
 
     const results = await Promise.allSettled(
-      batch.map(async (link) => {
+      batch.map(async (link: { id: string; url: string; status: string; post: { siteId: string } }) => {
         checked++;
 
         const isBroken = await isLinkBroken(link.url);
@@ -93,13 +93,13 @@ export async function checkBrokenLinks(
 
   // If checking all sites, log a global entry using the first available site
   if (!siteId && links.length > 0) {
-    const siteIds = [...new Set(links.map((l) => l.post.siteId))];
+    const siteIds = [...new Set(links.map((l: { post: { siteId: string } }) => l.post.siteId))];
     for (const sid of siteIds) {
-      const siteLinks = links.filter((l) => l.post.siteId === sid);
+      const siteLinks = links.filter((l: { post: { siteId: string } }) => l.post.siteId === sid);
       const siteBroken = siteLinks.filter(
-        (l) => l.status === "active",
+        (l: { status: string }) => l.status === "active",
       ).length; // approximate — already updated
-      await log(sid, "broken_link_check", "success", {
+      await log(sid as string, "broken_link_check", "success", {
         checked: siteLinks.length,
         brokenApprox: siteBroken,
       });
@@ -160,7 +160,7 @@ async function log(
         siteId,
         eventType,
         status,
-        metadata: (metadata ?? undefined) as undefined | Record<string, string | number | boolean | null>,
+        metadata: (metadata ?? undefined) as Prisma.InputJsonValue | undefined,
       },
     });
   } catch {
