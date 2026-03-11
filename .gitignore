@@ -39,3 +39,7 @@ Thumbs.db
 
 # Prisma
 prisma/*.db
+.vercel
+
+# TypeScript build info
+tsconfig.tsbuildinfo
