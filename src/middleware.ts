@@ -1,7 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/(admin)", "/api"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/posts",
+  "/keywords",
+  "/sites",
+  "/clusters",
+  "/calendar",
+  "/logs",
+  "/stats",
+  "/settings",
+  "/api",
+];
 const PUBLIC_API_PREFIXES = ["/api/worker"];
 
 function isProtectedRoute(pathname: string): boolean {
@@ -75,5 +86,16 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/(admin)/:path*", "/api/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/posts/:path*",
+    "/keywords/:path*",
+    "/sites/:path*",
+    "/clusters/:path*",
+    "/calendar/:path*",
+    "/logs/:path*",
+    "/stats/:path*",
+    "/settings/:path*",
+    "/api/:path*",
+  ],
 };
