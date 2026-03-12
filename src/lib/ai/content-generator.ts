@@ -113,12 +113,7 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Failed to parse outline JSON from Claude response");
-  }
-
-  const outline = JSON.parse(jsonMatch[0]) as PostOutline;
+  const outline = JSON.parse(extractJson(text)) as PostOutline;
 
   // Validate minimum structure
   if (!outline.h1 || !outline.sections?.length || !outline.faqQuestions?.length) {
@@ -177,19 +172,14 @@ Para el HTML:
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-20250514",
-    max_tokens: 8000,
+    max_tokens: 16000,
     messages: [{ role: "user", content: prompt }],
   });
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
 
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error("Failed to parse content JSON from Claude response");
-  }
-
-  const content = JSON.parse(jsonMatch[0]) as {
+  const content = JSON.parse(extractJson(text)) as {
     html: string;
     markdown: string;
     faqItems: { question: string; answer: string }[];
@@ -213,6 +203,56 @@ Para el HTML:
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+
+/**
+ * Extract JSON from a Claude response that may contain markdown code fences.
+ * Handles braces inside JSON string values (e.g., HTML with CSS).
+ */
+function extractJson(text: string): string {
+  // Strip markdown code fences if present
+  const stripped = text.replace(/```(?:json)?\s*\n?/g, "").trim();
+
+  const start = stripped.indexOf("{");
+  if (start === -1) throw new Error("No JSON object found in response");
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  let end = -1;
+
+  for (let i = start; i < stripped.length; i++) {
+    const ch = stripped[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+
+  if (end === -1) throw new Error("Unbalanced JSON braces in response");
+  return stripped.slice(start, end + 1);
+}
 
 function formatOutlineForPrompt(outline: PostOutline): string {
   const lines: string[] = [];
