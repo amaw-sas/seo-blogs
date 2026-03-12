@@ -23,6 +23,7 @@ import {
 import { checkCannibalization } from "./utils/similarity-checker";
 import { addRetroactiveLinks, addConversionLink } from "../src/lib/seo/auto-linker";
 import { categorizePost } from "../src/lib/ai/auto-categorizer";
+import { publishToWordPress, type WpSiteConfig } from "./connectors/wordpress";
 
 const prisma = new PrismaClient();
 
@@ -413,6 +414,51 @@ export async function runPipeline(
       error: message,
     });
     // Non-fatal: post was already saved
+  }
+
+  // Step 12: Publish to WordPress (if site has WP credentials)
+  if (site.platform === "wordpress" && site.apiUrl && site.apiUser && site.apiPassword) {
+    try {
+      await logStep(siteId, post.id, "wordpress_publish", "started");
+
+      const wpConfig: WpSiteConfig = {
+        apiUrl: site.apiUrl,
+        apiUser: site.apiUser,
+        apiPassword: site.apiPassword,
+        domain: site.domain,
+      };
+
+      const externalId = await publishToWordPress(
+        {
+          title: post.title,
+          slug: bestResult.slug,
+          contentHtml: post.contentHtml,
+          metaTitle: bestResult.metaTitle,
+          metaDescription: bestResult.metaDescription,
+          status: "publish",
+        },
+        wpConfig,
+      );
+
+      await prisma.post.update({
+        where: { id: post.id },
+        data: {
+          externalPostId: externalId,
+          status: "published",
+          publishedAt: new Date(),
+        },
+      });
+
+      await logStep(siteId, post.id, "wordpress_publish", "success", {
+        externalPostId: externalId,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await logStep(siteId, post.id, "wordpress_publish", "failed", {
+        error: message,
+      });
+      // Non-fatal: post remains in DB with status "review"
+    }
   }
 
   return {
