@@ -8,7 +8,7 @@ import {
   calculateKeywordFrequency,
   calculateReadingTime,
   calculateReadabilityScore,
-} from "@/lib/seo/metrics";
+} from "../seo/metrics";
 
 // ── Types ────────────────────────────────────────────────────
 

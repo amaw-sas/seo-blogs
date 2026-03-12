@@ -11,8 +11,8 @@ COPY worker/package.json ./worker/
 # Install root dependencies
 RUN npm ci --omit=dev
 
-# Install worker dependencies
-RUN cd worker && npm install --omit=dev
+# Install worker dependencies (include devDeps for build: tsc)
+RUN cd worker && npm install
 
 # Copy source code needed by worker
 COPY src/ ./src/
