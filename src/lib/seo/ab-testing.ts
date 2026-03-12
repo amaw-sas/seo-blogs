@@ -4,7 +4,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { prisma } from "@/lib/db/prisma";
+import { prisma } from "../db/prisma";
 
 // ── Types ────────────────────────────────────────────────────
 

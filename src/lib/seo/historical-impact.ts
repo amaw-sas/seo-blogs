@@ -3,7 +3,7 @@
  * Checks what content performed well around a given date in previous years.
  */
 
-import { prisma } from "@/lib/db/prisma";
+import { prisma } from "../db/prisma";
 
 // ── Types ────────────────────────────────────────────────────
 

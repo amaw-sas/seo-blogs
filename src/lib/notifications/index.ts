@@ -3,7 +3,7 @@
  * Routes notifications to email or Telegram and records them in the DB.
  */
 
-import { prisma } from "@/lib/db/prisma";
+import { prisma } from "../db/prisma";
 import { sendEmail } from "./email";
 import { sendTelegramMessage } from "./telegram";
 

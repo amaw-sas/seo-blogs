@@ -2,7 +2,7 @@
  * Sitemap generation and Google ping utilities.
  */
 
-import { prisma } from "@/lib/db/prisma";
+import { prisma } from "../db/prisma";
 
 /**
  * Generate an XML sitemap from all published posts for a site.

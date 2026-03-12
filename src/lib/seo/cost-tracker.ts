@@ -3,7 +3,7 @@
  * Sums token and image generation costs from publish logs.
  */
 
-import { prisma } from "@/lib/db/prisma";
+import { prisma } from "../db/prisma";
 
 // ── Types ────────────────────────────────────────────────────
 
