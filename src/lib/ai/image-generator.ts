@@ -76,11 +76,13 @@ function buildImagePrompt(
   keyword: string,
   isHero: boolean,
 ): string {
-  const base = `Professional blog illustration for an article about "${keyword}". Title: "${title}".`;
+  const context = `Article topic: "${keyword}". Title: "${title}".`;
+
   if (isHero) {
-    return `${base} Create a clean, modern hero image with a professional color palette. No text overlays. Photorealistic style with subtle depth of field. Wide format.`;
+    return `ultra realistic photography, ${context} Capture a scene that visually represents the topic. Warm natural sunlight, vibrant natural colors, scenic composition, cinematic framing, depth of field, professional photography, 16:9 aspect ratio, highly detailed, natural atmosphere. No text, no watermarks, no logos, no people's faces.`;
   }
-  return `${base} Create a supporting illustration that explains a concept visually. Clean, minimal design. Infographic style. No text. Wide format.`;
+
+  return `ultra realistic photography, ${context} A detail shot or close-up scene related to the article topic. Natural lighting, soft bokeh background, warm color tones, editorial photography style, 16:9, highly detailed. No text, no watermarks, no logos, no people's faces.`;
 }
 
 /**
