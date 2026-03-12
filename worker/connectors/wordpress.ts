@@ -33,6 +33,12 @@ interface WpApiResponse {
   [key: string]: unknown;
 }
 
+interface WpMediaResponse {
+  id: number;
+  source_url: string;
+  [key: string]: unknown;
+}
+
 // ── Constants ────────────────────────────────────────────────
 
 const MAX_RETRIES = 3;
@@ -71,6 +77,61 @@ export async function publishToWordPress(
   }
 
   return externalId;
+}
+
+/**
+ * Upload an image from URL to WordPress media library.
+ * Downloads the image first, then uploads to WP REST API.
+ *
+ * @returns The WordPress media ID.
+ */
+export async function uploadMediaToWordPress(
+  imageUrl: string,
+  altText: string,
+  site: WpSiteConfig,
+): Promise<number> {
+  // Download the image
+  const imageResponse = await fetch(imageUrl);
+  if (!imageResponse.ok) {
+    throw new Error(`Failed to download image: ${imageResponse.status}`);
+  }
+  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+  const contentType = imageResponse.headers.get("content-type") ?? "image/webp";
+
+  // Extract filename from URL
+  const urlParts = imageUrl.split("/");
+  const filename = urlParts[urlParts.length - 1] || "featured-image.webp";
+
+  const url = `${normalizeApiUrl(site.apiUrl)}/wp/v2/media`;
+  const credentials = Buffer.from(`${site.apiUser}:${site.apiPassword}`).toString("base64");
+
+  const response = await fetchWithRetry(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${credentials}`,
+      "Content-Type": contentType,
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+    body: imageBuffer,
+  });
+
+  const data = (await response.json()) as WpMediaResponse;
+
+  // Set alt text
+  if (altText) {
+    const updateUrl = `${normalizeApiUrl(site.apiUrl)}/wp/v2/media/${data.id}`;
+    await fetch(updateUrl, {
+      method: "POST",
+      headers: {
+        ...buildHeaders(site),
+      },
+      body: JSON.stringify({ alt_text: altText }),
+    }).catch(() => {
+      // Non-fatal: alt text update failure doesn't block publish
+    });
+  }
+
+  return data.id;
 }
 
 /**

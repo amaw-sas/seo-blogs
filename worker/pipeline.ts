@@ -23,7 +23,7 @@ import {
 import { checkCannibalization } from "./utils/similarity-checker";
 import { addRetroactiveLinks, addConversionLink } from "../src/lib/seo/auto-linker";
 import { categorizePost } from "../src/lib/ai/auto-categorizer";
-import { publishToWordPress, type WpSiteConfig } from "./connectors/wordpress";
+import { publishToWordPress, uploadMediaToWordPress, type WpSiteConfig } from "./connectors/wordpress";
 
 const prisma = new PrismaClient();
 
@@ -106,6 +106,7 @@ export async function runPipeline(
   }
 
   let bestResult: {
+    h1: string;
     html: string;
     markdown: string;
     wordCount: number;
@@ -191,9 +192,10 @@ export async function runPipeline(
       );
 
       // Insert links and images into HTML
+      // Note: schema JSON-LD is NOT injected here — WordPress sanitizes <script> tags
+      // from post content. Schema is stored in DB and can be injected via theme/plugin.
       let enrichedHtml = insertImagesIntoHtml(content.html, images);
       enrichedHtml = insertLinksIntoHtml(enrichedHtml, links);
-      enrichedHtml = insertSchemaScript(enrichedHtml, schema);
 
       // Step 7: Calculate SEO score
       const scorerInput: ScorerInput = {
@@ -214,6 +216,7 @@ export async function runPipeline(
       });
 
       bestResult = {
+        h1: outline.h1,
         html: enrichedHtml,
         markdown: content.markdown,
         wordCount: content.wordCount,
@@ -270,7 +273,7 @@ export async function runPipeline(
   const post = await prisma.post.create({
     data: {
       siteId,
-      title: bestResult.metaTitle.split(" | ")[0] ?? bestResult.metaTitle,
+      title: bestResult.h1,
       slug: bestResult.slug,
       contentHtml: bestResult.html,
       contentMarkdown: bestResult.markdown,
@@ -428,6 +431,22 @@ export async function runPipeline(
         domain: site.domain,
       };
 
+      // Upload hero image as featured media
+      let featuredMediaId: number | undefined;
+      if (bestResult.images.length > 0) {
+        try {
+          featuredMediaId = await uploadMediaToWordPress(
+            bestResult.images[0].url,
+            bestResult.images[0].altText,
+            wpConfig,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          console.error(`[Pipeline] Featured image upload failed: ${msg}`);
+          // Non-fatal: publish without featured image
+        }
+      }
+
       const externalId = await publishToWordPress(
         {
           title: post.title,
@@ -436,6 +455,7 @@ export async function runPipeline(
           metaTitle: bestResult.metaTitle,
           metaDescription: bestResult.metaDescription,
           status: "publish",
+          featuredMediaId,
         },
         wpConfig,
       );
@@ -736,7 +756,7 @@ function generateSlug(title: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "")
-    .slice(0, 80);
+    .slice(0, 150);
 }
 
 function generateMetaDescription(html: string, keyword: string): string {
