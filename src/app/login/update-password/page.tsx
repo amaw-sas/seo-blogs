@@ -39,6 +39,8 @@ export default function UpdatePasswordPage() {
       const result = await resetPassword(formData);
       if (result?.error) {
         setError(result.error);
+      } else {
+        window.location.href = "/dashboard";
       }
     });
   }

@@ -1,7 +1,6 @@
 "use server";
 
 import { createSupabaseServerClient } from "@/lib/auth/supabase";
-import { redirect } from "next/navigation";
 
 export async function login(formData: FormData) {
   const email = formData.get("email") as string;
@@ -18,13 +17,13 @@ export async function login(formData: FormData) {
     return { error: error.message };
   }
 
-  redirect("/dashboard");
+  return { success: true };
 }
 
 export async function logout() {
   const supabase = await createSupabaseServerClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  return { success: true };
 }
 
 export async function requestPasswordReset(formData: FormData) {
@@ -54,5 +53,5 @@ export async function resetPassword(formData: FormData) {
     return { error: error.message };
   }
 
-  redirect("/dashboard");
+  return { success: true };
 }

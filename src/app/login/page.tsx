@@ -29,6 +29,9 @@ export default function LoginPage() {
       const result = await login(formData);
       if (result?.error) {
         setError(result.error);
+      } else {
+        // Full navigation ensures cookies are processed before page loads
+        window.location.href = "/dashboard";
       }
     });
   }
