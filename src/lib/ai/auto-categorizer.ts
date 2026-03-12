@@ -1,9 +1,9 @@
 /**
- * AI-powered auto-categorization using Claude.
+ * AI-powered auto-categorization using OpenAI.
  * Assigns posts to the best existing category or suggests a new one.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "./openai-client";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -36,8 +36,6 @@ export async function categorizePost(
     return suggestNewCategory(title, keyword);
   }
 
-  const client = getClient();
-
   const categoriesList = existingCategories
     .map((c) => `- ${c.name} (slug: ${c.slug})`)
     .join("\n");
@@ -65,14 +63,7 @@ Responde SOLO con JSON valido (sin markdown code fences):
   "isNew": boolean
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 200,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 200);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
@@ -115,12 +106,6 @@ Responde SOLO con JSON valido (sin markdown code fences):
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
-}
-
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -137,8 +122,6 @@ async function suggestNewCategory(
   title: string,
   keyword: string,
 ): Promise<CategorySuggestion> {
-  const client = getClient();
-
   const prompt = `Eres un experto en SEO. Sugiere UNA categoria en espanol para este articulo:
 - Titulo: "${title}"
 - Keyword: "${keyword}"
@@ -154,14 +137,7 @@ Responde SOLO con JSON valido (sin markdown code fences):
   "categoryName": "string"
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 100,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 100);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {

@@ -3,7 +3,7 @@
  * Creates tests with title variants and evaluates winner by CTR.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "../ai/openai-client";
 import { prisma } from "../db/prisma";
 
 // ── Types ────────────────────────────────────────────────────
@@ -28,14 +28,6 @@ export interface CtrEvaluation {
   winner: string;
   winnerTitle: string;
   confidence: "low" | "medium" | "high";
-}
-
-// ── Client ───────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
 }
 
 // ── Create A/B Test ──────────────────────────────────────────
@@ -142,8 +134,6 @@ export async function generateTitleVariants(
   title: string,
   keyword: string,
 ): Promise<string[]> {
-  const client = getClient();
-
   const prompt = `Eres un experto en SEO y copywriting en espanol.
 
 Dado este titulo original de blog: "${title}"
@@ -158,18 +148,11 @@ Genera exactamente 2 titulos alternativos que:
 Responde SOLO con JSON valido (sin markdown code fences):
 ["titulo alternativo 1", "titulo alternativo 2"]`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 500,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 500);
 
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    throw new Error("Failed to parse title variants from Claude response");
+    throw new Error("Failed to parse title variants from AI response");
   }
 
   const variants = JSON.parse(jsonMatch[0]) as string[];

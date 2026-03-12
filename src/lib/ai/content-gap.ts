@@ -1,10 +1,10 @@
 /**
  * Content gap analysis.
  * Analyzes published posts + keywords to find uncovered topics.
- * Uses Claude to identify gaps and suggest new content opportunities.
+ * Uses OpenAI to identify gaps and suggest new content opportunities.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "./openai-client";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -15,14 +15,6 @@ export interface ContentGap {
   topic: string;
   reason: string;
   suggestedKeywords: string[];
-}
-
-// ── Client ───────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
 }
 
 // ── Public API ───────────────────────────────────────────────
@@ -56,8 +48,6 @@ export async function findContentGaps(
   const existingTopics = posts.map((p) => `- "${p.title}" (keyword: ${p.keyword})`).join("\n");
   const existingKeywords = keywords.map((k) => `- "${k.phrase}" (${k.status})`).join("\n");
 
-  const client = getClient();
-
   const prompt = `Eres un experto en estrategia de contenido SEO.
 
 Analiza el contenido existente de un sitio web y sus keywords para identificar brechas de contenido (content gaps).
@@ -85,19 +75,12 @@ Responde SOLO con JSON valido (sin markdown code fences):
   ]
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 3000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 3000);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error(
-      "Failed to parse content gap analysis JSON from Claude response",
+      "Failed to parse content gap analysis JSON from AI response",
     );
   }
 

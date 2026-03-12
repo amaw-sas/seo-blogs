@@ -1,9 +1,9 @@
 /**
- * AI content generation using Claude API.
+ * AI content generation using OpenAI API.
  * Generates SEO-optimized blog post outlines and full content in Spanish.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "./openai-client";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -36,14 +36,6 @@ export interface GeneratedContent {
   faqItems: { question: string; answer: string }[];
 }
 
-// ── Client ───────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
-}
-
 // ── Outline Generation ───────────────────────────────────────
 
 interface CompetitionInsights {
@@ -58,8 +50,6 @@ export async function generateOutline(
   siteConfig: SiteConfig,
   competitionAnalysis?: CompetitionInsights,
 ): Promise<PostOutline> {
-  const client = getClient();
-
   const competitionContext = competitionAnalysis
     ? `
 
@@ -104,14 +94,7 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
   "tableOfContents": ["string - lista de todos los H2"]
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 2000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 2000);
 
   const outline = JSON.parse(extractJson(text)) as PostOutline;
 
@@ -130,8 +113,6 @@ export async function generateContent(
   keyword: string,
   siteConfig: SiteConfig,
 ): Promise<GeneratedContent> {
-  const client = getClient();
-
   const outlineText = formatOutlineForPrompt(outline);
 
   const prompt = `Eres un redactor experto en SEO para contenido en espanol.
@@ -170,14 +151,7 @@ Para el HTML:
 - NO incluyas imagenes, se insertaran despues
 - NO incluyas links, se insertaran despues`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 16000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 16000);
 
   const content = JSON.parse(extractJson(text)) as {
     html: string;

@@ -5,7 +5,7 @@
  */
 
 import { PrismaClient } from "@prisma/client";
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "../../src/lib/ai/openai-client";
 
 const prisma = new PrismaClient();
 
@@ -213,15 +213,13 @@ async function analyzeTimeSensitiveContent(
 ): Promise<OutdatedItem[]> {
   if (posts.length === 0) return [];
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
+  if (!process.env.OPENAI_API_KEY) {
     console.warn(
-      "[OutdatedContent] ANTHROPIC_API_KEY not set — skipping AI analysis",
+      "[OutdatedContent] OPENAI_API_KEY not set — skipping AI analysis",
     );
     return [];
   }
 
-  const anthropic = new Anthropic({ apiKey });
   const results: OutdatedItem[] = [];
 
   // Process in small batches to limit token usage
@@ -240,13 +238,7 @@ async function analyzeTimeSensitiveContent(
       .join("\n\n---\n\n");
 
     try {
-      const response = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
-        messages: [
-          {
-            role: "user",
-            content: `Analyze these blog posts and identify which ones contain time-sensitive information that may be outdated (dates, prices, regulations, version numbers, statistics with years, etc.).
+      const prompt = `Analyze these blog posts and identify which ones contain time-sensitive information that may be outdated (dates, prices, regulations, version numbers, statistics with years, etc.).
 
 For each post that needs updating, respond with a JSON array of objects with these fields:
 - postId: the post ID
@@ -257,13 +249,9 @@ For each post that needs updating, respond with a JSON array of objects with the
 If no posts need updating, return an empty array [].
 Respond ONLY with the JSON array, no markdown formatting.
 
-${postSummaries}`,
-          },
-        ],
-      });
+${postSummaries}`;
 
-      const text =
-        response.content[0].type === "text" ? response.content[0].text : "[]";
+      const text = await chatCompletion(prompt, 1024);
       const cleaned = text.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
 
       const parsed = JSON.parse(cleaned) as OutdatedItem[];

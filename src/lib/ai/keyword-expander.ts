@@ -1,9 +1,9 @@
 /**
- * Keyword expansion using Claude API.
+ * Keyword expansion using OpenAI API.
  * Generates long-tail and "People Also Ask" style derived keywords.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "./openai-client";
 
 export interface ExpandedKeyword {
   phrase: string;
@@ -15,12 +15,6 @@ export interface SiteContext {
   existingKeywords: string[];
 }
 
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
-}
-
 /**
  * Expand a seed keyword into 5-10 derived long-tail keywords.
  * Returns phrases ranked by estimated search priority.
@@ -29,8 +23,6 @@ export async function expandKeyword(
   keyword: string,
   siteContext: SiteContext,
 ): Promise<ExpandedKeyword[]> {
-  const client = getClient();
-
   const existingList =
     siteContext.existingKeywords.length > 0
       ? `\nKeywords ya existentes en el sitio (evitar duplicados):\n${siteContext.existingKeywords.map((k) => `- ${k}`).join("\n")}`
@@ -57,18 +49,11 @@ Responde SOLO con JSON valido (sin markdown code fences):
   { "phrase": "string", "priority": number }
 ]`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1500,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 1500);
 
   const jsonMatch = text.match(/\[[\s\S]*\]/);
   if (!jsonMatch) {
-    throw new Error("Failed to parse keyword expansion JSON from Claude response");
+    throw new Error("Failed to parse keyword expansion JSON from AI response");
   }
 
   const keywords = JSON.parse(jsonMatch[0]) as ExpandedKeyword[];

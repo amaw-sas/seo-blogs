@@ -1,10 +1,10 @@
 /**
  * Competition analysis for keywords.
- * Uses Claude to analyze top-ranking content structure and identify gaps.
+ * Uses OpenAI to analyze top-ranking content structure and identify gaps.
  * Results feed into the outline generation step for better content strategy.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "./openai-client";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -13,14 +13,6 @@ export interface CompetitionAnalysis {
   commonH2Topics: string[];
   contentGaps: string[];
   suggestedAngle: string;
-}
-
-// ── Client ───────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
 }
 
 // ── Public API ───────────────────────────────────────────────
@@ -32,8 +24,6 @@ function getClient(): Anthropic {
 export async function analyzeCompetition(
   keyword: string,
 ): Promise<CompetitionAnalysis> {
-  const client = getClient();
-
   const prompt = `Eres un experto en SEO y analisis de contenido competitivo.
 
 Analiza la estructura tipica de contenido que ranquea en las primeras posiciones de Google para la keyword: "${keyword}"
@@ -53,19 +43,12 @@ Responde SOLO con JSON valido (sin markdown code fences):
   "suggestedAngle": "string"
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 1500,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 1500);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
     throw new Error(
-      "Failed to parse competition analysis JSON from Claude response",
+      "Failed to parse competition analysis JSON from AI response",
     );
   }
 

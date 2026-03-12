@@ -1,9 +1,9 @@
 /**
- * Social media snippet generation using Claude API.
+ * Social media snippet generation using OpenAI API.
  * Generates platform-specific snippets for blog posts.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
+import { chatCompletion } from "./openai-client";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -21,14 +21,6 @@ export interface PostForSnippets {
   contentHtml: string;
 }
 
-// ── Client ───────────────────────────────────────────────────
-
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set");
-  return new Anthropic({ apiKey });
-}
-
 // ── Generation ───────────────────────────────────────────────
 
 /**
@@ -37,8 +29,6 @@ function getClient(): Anthropic {
 export async function generateSocialSnippets(
   post: PostForSnippets,
 ): Promise<SocialSnippets> {
-  const client = getClient();
-
   // Extract plain text summary (first 500 chars) to keep prompt concise
   const plainText = post.contentHtml
     .replace(/<[^>]+>/g, " ")
@@ -72,18 +62,11 @@ Responde SOLO con JSON valido (sin markdown code fences):
   "instagram": "texto para instagram"
 }`;
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-20250514",
-    max_tokens: 2000,
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const text =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const text = await chatCompletion(prompt, 2000);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {
-    throw new Error("Failed to parse social snippets from Claude response");
+    throw new Error("Failed to parse social snippets from AI response");
   }
 
   const snippets = JSON.parse(jsonMatch[0]) as SocialSnippets;
