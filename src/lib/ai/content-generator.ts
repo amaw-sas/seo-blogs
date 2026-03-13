@@ -228,6 +228,9 @@ function extractJson(text: string): string {
   return stripped.slice(start, end + 1);
 }
 
+// ── Exports for testing ─────────────────────────────────────
+export { extractJson };
+
 function formatOutlineForPrompt(outline: PostOutline): string {
   const lines: string[] = [];
   lines.push(`H1: ${outline.h1}`);

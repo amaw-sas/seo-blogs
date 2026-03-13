@@ -814,6 +814,10 @@ function extractDomainName(url: string): string {
   }
 }
 
+// ── Exports for testing ─────────────────────────────────────
+export { generateSlug, generateMetaDescription, extractTags, truncate,
+         insertImagesIntoHtml, insertLinksIntoHtml, buildLinks };
+
 async function logStep(
   siteId: string,
   postId: string | null,
