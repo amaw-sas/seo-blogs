@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     include: ["src/**/*.test.ts", "worker/**/*.test.ts"],
+    exclude: ["**/*.e2e.test.ts", "**/node_modules/**"],
     coverage: {
       provider: "v8",
       thresholds: {
