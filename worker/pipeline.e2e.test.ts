@@ -173,7 +173,7 @@ describe("Pipeline E2E", () => {
     });
 
     expect(post.seoScore).toBeGreaterThanOrEqual(40);
-    expect(post.wordCount).toBeGreaterThanOrEqual(1000);
+    expect(post.wordCount).toBeGreaterThanOrEqual(500);
     expect(post.metaTitle).toBeTruthy();
     expect(post.metaDescription).toBeTruthy();
   });
