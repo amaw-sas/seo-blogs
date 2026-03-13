@@ -6,6 +6,11 @@ export async function GET() {
   try {
     const sites = await prisma.site.findMany({
       orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: { keywords: { where: { status: "pending" } } },
+        },
+      },
     });
 
     return NextResponse.json({ data: sites });

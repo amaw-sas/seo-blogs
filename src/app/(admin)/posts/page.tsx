@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface Site {
   id: string;
@@ -108,10 +108,6 @@ export default function PostsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Posts</h2>
-        <Button size="sm" className="gap-2">
-          <Plus className="size-4" />
-          Nuevo post
-        </Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
