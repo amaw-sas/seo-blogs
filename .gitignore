@@ -29,6 +29,9 @@ out/
 # Build
 dist/
 
+# Test coverage
+coverage/
+
 # IDE
 .vscode/
 .idea/
