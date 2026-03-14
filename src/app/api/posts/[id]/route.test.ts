@@ -23,6 +23,13 @@ vi.mock("../../../../../worker/connectors/wordpress", () => ({
   deleteFromWordPress: mockDeleteFromWordPress,
 }));
 
+const { mockDeleteFromNuxtBlog } = vi.hoisted(() => ({
+  mockDeleteFromNuxtBlog: vi.fn(),
+}));
+vi.mock("../../../../../worker/connectors/nuxt-blog", () => ({
+  deleteFromNuxtBlog: mockDeleteFromNuxtBlog,
+}));
+
 import { DELETE } from "./route";
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -198,5 +205,84 @@ describe("DELETE /api/posts/[id]", () => {
     const res = await DELETE(req, ctx);
 
     expect(res.status).toBe(404);
+  });
+
+  // ── Nuxt Blog delete ─────────────────────────────────────
+
+  it("deletes from Nuxt blog when deleteExternal=true and platform is nuxt-blog", async () => {
+    const nuxtPost = {
+      id: "post-nuxt-1",
+      title: "Tipos de Carros",
+      externalPostId: "tipos-de-carros",
+      siteId: "site-nuxt",
+      site: {
+        id: "site-nuxt",
+        platform: "nuxt-blog",
+        apiUrl: "https://alquilatucarro.com",
+        apiUser: null,
+        apiPassword: "nuxt-api-key-123",
+      },
+    };
+
+    mockPrisma.post.findUnique.mockResolvedValue(nuxtPost);
+    mockPrisma.post.delete.mockResolvedValue(nuxtPost);
+    mockPrisma.publishLog.create.mockResolvedValue({});
+    mockDeleteFromNuxtBlog.mockResolvedValue(undefined);
+
+    const [req, ctx] = makeRequest("post-nuxt-1", true);
+    const res = await DELETE(req, ctx);
+    const body = await res.json();
+
+    expect(body.deleted).toBe(true);
+    expect(body.externalDeleted).toBe(true);
+    expect(mockDeleteFromNuxtBlog).toHaveBeenCalledWith("tipos-de-carros", {
+      apiUrl: "https://alquilatucarro.com",
+      apiKey: "nuxt-api-key-123",
+    });
+    expect(mockDeleteFromWordPress).not.toHaveBeenCalled();
+    expect(mockPrisma.publishLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        siteId: "site-nuxt",
+        postId: null,
+        eventType: "external_delete",
+        status: "success",
+      }),
+    });
+  });
+
+  it("logs failure when Nuxt blog delete fails", async () => {
+    const nuxtPost = {
+      id: "post-nuxt-2",
+      title: "Post Fallido",
+      externalPostId: "post-fallido",
+      siteId: "site-nuxt",
+      site: {
+        id: "site-nuxt",
+        platform: "nuxt-blog",
+        apiUrl: "https://alquilatucarro.com",
+        apiUser: null,
+        apiPassword: "nuxt-api-key-123",
+      },
+    };
+
+    mockPrisma.post.findUnique.mockResolvedValue(nuxtPost);
+    mockPrisma.post.delete.mockResolvedValue(nuxtPost);
+    mockPrisma.publishLog.create.mockResolvedValue({});
+    mockDeleteFromNuxtBlog.mockRejectedValue(new Error("Nuxt Blog API error 403: Forbidden"));
+
+    const [req, ctx] = makeRequest("post-nuxt-2", true);
+    const res = await DELETE(req, ctx);
+    const body = await res.json();
+
+    expect(body.deleted).toBe(true);
+    expect(body.externalDeleted).toBe(false);
+    expect(body.externalError).toContain("403");
+    expect(mockPrisma.publishLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        eventType: "external_delete",
+        status: "failed",
+        errorMessage: expect.stringContaining("403"),
+      }),
+    });
   });
 });

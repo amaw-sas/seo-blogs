@@ -425,7 +425,7 @@ describe("runPipeline — edge cases", () => {
     expect(uploadMediaToWordPress).not.toHaveBeenCalled();
   });
 
-  it("handles featured image upload failure gracefully", async () => {
+  it("aborts WordPress publish when featured image upload fails", async () => {
     setupHappyPath();
     (uploadMediaToWordPress as Mock).mockRejectedValue(
       new Error("Upload failed"),
@@ -434,10 +434,17 @@ describe("runPipeline — edge cases", () => {
     const result = await runPipeline(SITE_ID);
 
     expect(result.postId).toBe(POST_ID);
-    // publishToWordPress still called, but without featuredMediaId
-    expect(publishToWordPress).toHaveBeenCalledOnce();
-    const wpCallArgs = (publishToWordPress as Mock).mock.calls[0][0];
-    expect(wpCallArgs.featuredMediaId).toBeUndefined();
+    // publishToWordPress should NOT be called — image failure is fatal
+    expect(publishToWordPress).not.toHaveBeenCalled();
+    // Post remains in DB with status "review" (logged as failed)
+    expect(mockPrisma.publishLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: "wordpress_publish",
+          status: "failed",
+        }),
+      }),
+    );
   });
 
   it("skips conversion link when site has no conversionUrl", async () => {
