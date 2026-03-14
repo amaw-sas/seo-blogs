@@ -24,6 +24,7 @@ import { checkCannibalization } from "./utils/similarity-checker";
 import { addRetroactiveLinks, addConversionLink } from "../src/lib/seo/auto-linker";
 import { categorizePost } from "../src/lib/ai/auto-categorizer";
 import { publishToWordPress, uploadMediaToWordPress, type WpSiteConfig } from "./connectors/wordpress";
+import { publishToNuxtBlog, uploadImageToNuxtBlog, type NuxtBlogSiteConfig } from "./connectors/nuxt-blog";
 
 const prisma = new PrismaClient();
 
@@ -431,20 +432,14 @@ export async function runPipeline(
         domain: site.domain,
       };
 
-      // Upload hero image as featured media
+      // Upload hero image as featured media (fatal — no publish without image)
       let featuredMediaId: number | undefined;
       if (bestResult.images.length > 0) {
-        try {
-          featuredMediaId = await uploadMediaToWordPress(
-            bestResult.images[0].url,
-            bestResult.images[0].altText,
-            wpConfig,
-          );
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          console.error(`[Pipeline] Featured image upload failed: ${msg}`);
-          // Non-fatal: publish without featured image
-        }
+        featuredMediaId = await uploadMediaToWordPress(
+          bestResult.images[0].url,
+          bestResult.images[0].altText,
+          wpConfig,
+        );
       }
 
       const externalId = await publishToWordPress(
@@ -475,6 +470,76 @@ export async function runPipeline(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await logStep(siteId, post.id, "wordpress_publish", "failed", {
+        error: message,
+      });
+      // Non-fatal: post remains in DB with status "review"
+    }
+  }
+
+  // Step 12b: Publish to Nuxt Blog (if site has nuxt-blog credentials)
+  if (site.platform === "nuxt-blog" && site.apiUrl && site.apiPassword) {
+    try {
+      await logStep(siteId, post.id, "nuxt_publish", "started");
+
+      const nuxtConfig: NuxtBlogSiteConfig = {
+        apiUrl: site.apiUrl,
+        apiKey: site.apiPassword,
+        domain: site.domain,
+      };
+
+      // Upload ALL images to Firebase via Nuxt blog's upload-image endpoint
+      const imageUrlMap = new Map<string, string>(); // supabaseUrl → firebaseUrl
+
+      for (let i = 0; i < bestResult.images.length; i++) {
+        const img = bestResult.images[i];
+        const type = i === 0 ? "featured" : "content";
+        const firebaseUrl = await uploadImageToNuxtBlog(
+          img.url,
+          type as "featured" | "content",
+          img.altText,
+          nuxtConfig,
+        );
+        imageUrlMap.set(img.url, firebaseUrl);
+      }
+
+      // Replace Supabase URLs with Firebase URLs in a copy of the HTML
+      let publishHtml = post.contentHtml;
+      for (const [supabaseUrl, firebaseUrl] of imageUrlMap) {
+        publishHtml = publishHtml.replaceAll(supabaseUrl, firebaseUrl);
+      }
+
+      // Get featured image Firebase URL (first image)
+      const featuredFirebaseUrl = bestResult.images.length > 0
+        ? imageUrlMap.get(bestResult.images[0].url)
+        : undefined;
+
+      const slug = await publishToNuxtBlog(
+        {
+          title: post.title,
+          slug: bestResult.slug,
+          contentHtml: publishHtml,
+          metaDescription: bestResult.metaDescription,
+          featuredImageUrl: featuredFirebaseUrl,
+          featuredImageAlt: bestResult.images[0]?.altText,
+        },
+        nuxtConfig,
+      );
+
+      await prisma.post.update({
+        where: { id: post.id },
+        data: {
+          externalPostId: slug,
+          status: "published",
+          publishedAt: new Date(),
+        },
+      });
+
+      await logStep(siteId, post.id, "nuxt_publish", "success", {
+        externalPostId: slug,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      await logStep(siteId, post.id, "nuxt_publish", "failed", {
         error: message,
       });
       // Non-fatal: post remains in DB with status "review"

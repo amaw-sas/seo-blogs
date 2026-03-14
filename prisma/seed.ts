@@ -114,7 +114,68 @@ async function seedSites() {
     },
   });
 
-  return { alquilerCarro, estrategias };
+  const alquilatucarro = await prisma.site.upsert({
+    where: { domain: "alquilatucarro.com" },
+    update: {},
+    create: {
+      domain: "alquilatucarro.com",
+      name: "Alquila Tu Carro",
+      platform: "nuxt-blog",
+      postsPerDay: 1,
+      minWords: 1500,
+      maxWords: 2500,
+      windowStart: 8,
+      windowEnd: 14,
+      conversionUrl: "https://alquilatucarro.com/reservar",
+      authoritativeSources: [
+        "https://www.mintransporte.gov.co",
+        "https://www.movilidadbogota.gov.co",
+      ],
+      active: true,
+    },
+  });
+
+  const alquicarros = await prisma.site.upsert({
+    where: { domain: "alquicarros.com" },
+    update: {},
+    create: {
+      domain: "alquicarros.com",
+      name: "Alquicarros",
+      platform: "nuxt-blog",
+      postsPerDay: 1,
+      minWords: 1500,
+      maxWords: 2500,
+      windowStart: 8,
+      windowEnd: 14,
+      conversionUrl: "https://alquicarros.com/reservar",
+      authoritativeSources: [
+        "https://www.mintransporte.gov.co",
+      ],
+      active: false,
+    },
+  });
+
+  const alquilame = await prisma.site.upsert({
+    where: { domain: "alquilame.co" },
+    update: {},
+    create: {
+      domain: "alquilame.co",
+      name: "Alquilame",
+      platform: "nuxt-blog",
+      postsPerDay: 1,
+      minWords: 1500,
+      maxWords: 2500,
+      windowStart: 8,
+      windowEnd: 14,
+      conversionUrl: "https://alquilame.co/reservar",
+      authoritativeSources: [
+        "https://www.mintransporte.gov.co",
+      ],
+      active: false,
+    },
+  });
+
+  return { alquilerCarro, estrategias, alquilatucarro, alquicarros, alquilame };
 }
 
 // ── Main Seed ───────────────────────────────────────────────
@@ -153,9 +214,12 @@ async function main() {
   console.log(`  Created/verified ${createdHolidays.length} holidays.`);
 
   console.log("Seeding sites...");
-  const { alquilerCarro, estrategias } = await seedSites();
+  const { alquilerCarro, estrategias, alquilatucarro, alquicarros, alquilame } = await seedSites();
   console.log(`  Site: ${alquilerCarro.domain} (${alquilerCarro.platform})`);
   console.log(`  Site: ${estrategias.domain} (${estrategias.platform})`);
+  console.log(`  Site: ${alquilatucarro.domain} (${alquilatucarro.platform})`);
+  console.log(`  Site: ${alquicarros.domain} (${alquicarros.platform})`);
+  console.log(`  Site: ${alquilame.domain} (${alquilame.platform})`);
 
   // Activate key holidays for both sites
   console.log("Activating holidays for sites...");

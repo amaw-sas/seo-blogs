@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
 import { deleteFromWordPress } from "../../../../../worker/connectors/wordpress";
+import { deleteFromNuxtBlog } from "../../../../../worker/connectors/nuxt-blog";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -99,6 +100,36 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
             apiUrl: site.apiUrl,
             apiUser: site.apiUser,
             apiPassword: site.apiPassword,
+          });
+          externalDeleted = true;
+
+          await prisma.publishLog.create({
+            data: {
+              siteId: site.id,
+              postId: null,
+              eventType: "external_delete",
+              status: "success",
+            },
+          });
+        } catch (err) {
+          externalDeleted = false;
+          externalError = err instanceof Error ? err.message : String(err);
+
+          await prisma.publishLog.create({
+            data: {
+              siteId: site.id,
+              postId: null,
+              eventType: "external_delete",
+              status: "failed",
+              errorMessage: externalError,
+            },
+          });
+        }
+      } else if (site.platform === "nuxt-blog" && site.apiUrl && site.apiPassword) {
+        try {
+          await deleteFromNuxtBlog(post.externalPostId, {
+            apiUrl: site.apiUrl,
+            apiKey: site.apiPassword,
           });
           externalDeleted = true;
 
