@@ -21,7 +21,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { DeletePostDialog } from "@/components/delete-post-dialog";
 
 interface Site {
   id: string;
@@ -38,7 +39,8 @@ interface Post {
   keywordDensity: number | null;
   wordCount: number | null;
   createdAt: string;
-  site: { name: string; domain: string };
+  externalPostId: string | null;
+  site: { name: string; domain: string; platform: string };
 }
 
 const statusColors: Record<string, string> = {
@@ -69,6 +71,7 @@ export default function PostsPage() {
   const [siteFilter, setSiteFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -174,13 +177,14 @@ export default function PostsPage() {
               <TableHead className="text-right">Densidad</TableHead>
               <TableHead className="text-right">Palabras</TableHead>
               <TableHead>Fecha</TableHead>
+              <TableHead className="w-[60px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 9 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
@@ -189,7 +193,7 @@ export default function PostsPage() {
                 ))
               : posts.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                       No se encontraron posts
                     </TableCell>
                   </TableRow>
@@ -233,6 +237,19 @@ export default function PostsPage() {
                           year: "numeric",
                         })}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="text-muted-foreground hover:text-red-600"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeleteTarget(post);
+                          }}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -266,6 +283,21 @@ export default function PostsPage() {
           </Button>
         </div>
       </div>
+
+      {deleteTarget && (
+        <DeletePostDialog
+          post={deleteTarget}
+          sitePlatform={deleteTarget.site.platform}
+          open={!!deleteTarget}
+          onOpenChange={(open) => {
+            if (!open) setDeleteTarget(null);
+          }}
+          onDeleted={() => {
+            setDeleteTarget(null);
+            fetchPosts();
+          }}
+        />
+      )}
     </div>
   );
 }

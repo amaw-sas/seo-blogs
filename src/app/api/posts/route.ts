@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
         orderBy: { createdAt: "desc" },
-        include: { site: { select: { name: true, domain: true } } },
+        include: { site: { select: { name: true, domain: true, platform: true } } },
       }),
       prisma.post.count({ where }),
     ]);

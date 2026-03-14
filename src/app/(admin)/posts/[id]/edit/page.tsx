@@ -19,7 +19,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Save, Loader2, Eye, History, RotateCcw, Share2, Copy, Check, RefreshCw } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Eye, History, RotateCcw, Share2, Copy, Check, RefreshCw, Trash2 } from "lucide-react";
+import { DeletePostDialog } from "@/components/delete-post-dialog";
 
 interface PostData {
   id: string;
@@ -37,7 +38,8 @@ interface PostData {
   wordCount: number | null;
   charCount: number | null;
   readingTimeMinutes: number | null;
-  site: { name: string; domain: string };
+  externalPostId: string | null;
+  site: { name: string; domain: string; platform: string };
 }
 
 interface PostVersion {
@@ -98,6 +100,7 @@ export default function PostEditPage({
   const [snippets, setSnippets] = useState<SocialSnippets | null>(null);
   const [snippetsLoading, setSnippetsLoading] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [showDelete, setShowDelete] = useState(false);
 
   useEffect(() => {
     async function fetchPost() {
@@ -268,6 +271,15 @@ export default function PostEditPage({
         >
           <Eye className="size-4" />
           Vista previa
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="gap-2"
+          onClick={() => setShowDelete(true)}
+        >
+          <Trash2 className="size-4" />
+          Eliminar
         </Button>
         <Button size="sm" className="gap-2" onClick={handleSave} disabled={saving}>
           {saving ? (
@@ -582,6 +594,18 @@ export default function PostEditPage({
           </Card>
         </TabsContent>
       </Tabs>
+
+      <DeletePostDialog
+        post={{
+          id: post.id,
+          title: post.title,
+          externalPostId: post.externalPostId,
+        }}
+        sitePlatform={post.site.platform}
+        open={showDelete}
+        onOpenChange={setShowDelete}
+        onDeleted={() => router.push("/posts")}
+      />
     </div>
   );
 }

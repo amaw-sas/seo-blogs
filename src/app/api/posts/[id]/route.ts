@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
+import { deleteFromWordPress } from "../../../../../worker/connectors/wordpress";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,7 +16,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         links: true,
         postTags: { include: { tag: true } },
         category: true,
-        site: { select: { name: true, domain: true } },
+        site: { select: { name: true, domain: true, platform: true } },
       },
     });
 
@@ -68,13 +69,77 @@ export async function PUT(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { id } = await context.params;
+    const deleteExternal = request.nextUrl.searchParams.get("deleteExternal") === "true";
 
+    const post = await prisma.post.findUnique({
+      where: { id },
+      include: { site: true },
+    });
+
+    if (!post) {
+      return NextResponse.json({ error: "Post not found" }, { status: 404 });
+    }
+
+    // Delete from DB first — reversible state is safer than
+    // irreversible WP delete followed by a potential DB failure
     await prisma.post.delete({ where: { id } });
 
-    return NextResponse.json({ message: "Post deleted" });
+    let externalDeleted: boolean | null = null;
+    let externalError: string | undefined;
+
+    if (deleteExternal && post.externalPostId) {
+      const { site } = post;
+
+      if (site.platform === "wordpress" && site.apiUrl && site.apiUser && site.apiPassword) {
+        try {
+          await deleteFromWordPress(post.externalPostId, {
+            apiUrl: site.apiUrl,
+            apiUser: site.apiUser,
+            apiPassword: site.apiPassword,
+          });
+          externalDeleted = true;
+
+          await prisma.publishLog.create({
+            data: {
+              siteId: site.id,
+              postId: null,
+              eventType: "external_delete",
+              status: "success",
+            },
+          });
+        } catch (err) {
+          externalDeleted = false;
+          externalError = err instanceof Error ? err.message : String(err);
+
+          await prisma.publishLog.create({
+            data: {
+              siteId: site.id,
+              postId: null,
+              eventType: "external_delete",
+              status: "failed",
+              errorMessage: externalError,
+            },
+          });
+        }
+      } else {
+        // Platform without connector (e.g. "custom")
+        externalDeleted = false;
+
+        await prisma.publishLog.create({
+          data: {
+            siteId: site.id,
+            postId: null,
+            eventType: "external_delete",
+            status: "skipped",
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ deleted: true, externalDeleted, externalError });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });

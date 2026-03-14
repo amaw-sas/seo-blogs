@@ -135,6 +135,32 @@ export async function uploadMediaToWordPress(
 }
 
 /**
+ * Permanently delete a WordPress post (bypasses trash).
+ * Single attempt without retry — suitable for API route context
+ * where long backoffs would exceed HTTP timeouts.
+ * Treats 404 as idempotent success (post already gone).
+ */
+export async function deleteFromWordPress(
+  externalId: string,
+  site: WpSiteConfig,
+): Promise<void> {
+  const url = `${normalizeApiUrl(site.apiUrl)}/wp/v2/posts/${externalId}?force=true`;
+
+  const response = await fetch(url, {
+    method: "DELETE",
+    headers: buildHeaders(site),
+  });
+
+  // 404 = already deleted — treat as idempotent success
+  if (response.status === 404) return;
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`WordPress API error ${response.status}: ${body}`);
+  }
+}
+
+/**
  * Update an existing WordPress post.
  * Retries up to 3 times with exponential backoff.
  *
