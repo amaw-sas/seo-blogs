@@ -46,6 +46,7 @@ describe("wordpress connector", () => {
   let publishToWordPress: typeof import("./wordpress").publishToWordPress;
   let uploadMediaToWordPress: typeof import("./wordpress").uploadMediaToWordPress;
   let updateWordPressPost: typeof import("./wordpress").updateWordPressPost;
+  let deleteFromWordPress: typeof import("./wordpress").deleteFromWordPress;
   let pingGoogle: typeof import("../../src/lib/seo/sitemap").pingGoogle;
 
   beforeEach(async () => {
@@ -57,6 +58,7 @@ describe("wordpress connector", () => {
     publishToWordPress = wpMod.publishToWordPress;
     uploadMediaToWordPress = wpMod.uploadMediaToWordPress;
     updateWordPressPost = wpMod.updateWordPressPost;
+    deleteFromWordPress = wpMod.deleteFromWordPress;
 
     const sitemapMod = await import("../../src/lib/seo/sitemap");
     pingGoogle = sitemapMod.pingGoogle;
@@ -254,6 +256,67 @@ describe("wordpress connector", () => {
 
       // Only 2 calls: download + upload, no alt text update
       expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  // ── deleteFromWordPress ──────────────────────────────
+
+  describe("deleteFromWordPress", () => {
+    it("sends DELETE to /wp/v2/posts/{id}?force=true with auth", async () => {
+      const mockFetch = vi.mocked(globalThis.fetch);
+      mockFetch.mockResolvedValueOnce(jsonResponse({ deleted: true }));
+
+      await deleteFromWordPress("42", mockSite);
+
+      expect(mockFetch).toHaveBeenCalledOnce();
+      const [url, opts] = mockFetch.mock.calls[0]!;
+      expect(url).toBe("https://example.com/wp-json/wp/v2/posts/42?force=true");
+      expect(opts?.method).toBe("DELETE");
+
+      const headers = opts?.headers as Record<string, string>;
+      const expected = Buffer.from("admin:secret").toString("base64");
+      expect(headers.Authorization).toBe(`Basic ${expected}`);
+    });
+
+    it("throws on 403 without retrying", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        new Response("Forbidden", { status: 403 }),
+      );
+
+      await expect(deleteFromWordPress("42", mockSite)).rejects.toThrow(
+        /WordPress API error 403/,
+      );
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledOnce();
+    });
+
+    it("treats 404 as idempotent success (post already deleted)", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        new Response("Not Found", { status: 404 }),
+      );
+
+      // Should NOT throw — 404 means post is already gone
+      await deleteFromWordPress("42", mockSite);
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledOnce();
+    });
+
+    it("throws on 500 without retrying (single attempt)", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        new Response("Internal Server Error", { status: 500 }),
+      );
+
+      await expect(deleteFromWordPress("42", mockSite)).rejects.toThrow(
+        /WordPress API error 500/,
+      );
+      expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledOnce();
+    });
+
+    it("normalizes trailing slashes in apiUrl", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({}));
+
+      await deleteFromWordPress("10", { ...mockSite, apiUrl: "https://example.com/wp-json///" });
+
+      const url = vi.mocked(globalThis.fetch).mock.calls[0]![0];
+      expect(url).toBe("https://example.com/wp-json/wp/v2/posts/10?force=true");
     });
   });
 
