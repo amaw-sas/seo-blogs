@@ -769,7 +769,7 @@ function buildLinks(
 
   for (const post of relatedPosts) {
     links.push({
-      url: `/${post.slug}`,
+      url: `/blog/${post.slug}`,
       anchorText: post.keyword,
       type: "internal",
     });

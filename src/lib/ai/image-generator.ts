@@ -88,15 +88,14 @@ function buildImagePrompt(
   keyword: string,
   isHero: boolean,
 ): string {
-  // Use title (more descriptive) instead of keyword (often abstract) for scene context.
-  // Deliberately omit any mention of "text/letters/words" — mentioning them makes DALL-E add them.
+  // Use title for scene context. Avoid camera brand names — DALL-E renders them literally.
   const scene = title;
 
   if (isHero) {
-    return `Canon EOS R5, 35mm f/2.8, ISO 400. A wide documentary photograph of a scene related to: ${scene}. Latin American setting, warm ambient light, natural grain, photojournalistic style. 16:9 composition. Only the scene, nothing else overlaid.`;
+    return `Wide-angle photograph, 35mm perspective, f/2.8 aperture. Scene: ${scene}. Colombian setting, warm tropical sunlight, vivid natural colors, travel photography style. 16:9 composition. Only the landscape and environment, no people, no devices, no screens.`;
   }
 
-  return `Sony A7IV, 85mm f/1.8. A close-up detail photograph related to: ${scene}. Shallow depth of field, natural window light, muted warm tones. Editorial documentary style. 16:9 format. Pure photography, only the subject.`;
+  return `Close-up detail photograph, 85mm perspective, shallow depth of field. Subject related to: ${scene}. Natural light, warm tones, editorial travel style. 16:9 format. Only the subject, no people, no devices, no screens.`;
 }
 
 /**
