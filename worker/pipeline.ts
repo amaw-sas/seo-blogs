@@ -743,7 +743,7 @@ function insertImagesIntoHtml(
 
   // Insert hero image after first H1 or at the start
   const heroImg = images[0];
-  const heroTag = `<figure><img src="${heroImg.url}" alt="${heroImg.altText}" width="${heroImg.width}" height="${heroImg.height}" loading="eager" /><figcaption>${heroImg.altText}</figcaption></figure>`;
+  const heroTag = `<figure><img src="${heroImg.url}" alt="${heroImg.altText}" width="${heroImg.width}" height="${heroImg.height}" loading="eager" /></figure>`;
 
   let result = html.replace(
     /(<\/h1>)/i,
@@ -756,7 +756,7 @@ function insertImagesIntoHtml(
       .slice(1)
       .map(
         (img) =>
-          `<figure><img src="${img.url}" alt="${img.altText}" width="${img.width}" height="${img.height}" loading="lazy" /><figcaption>${img.altText}</figcaption></figure>`,
+          `<figure><img src="${img.url}" alt="${img.altText}" width="${img.width}" height="${img.height}" loading="lazy" /></figure>`,
       )
       .join("\n");
 

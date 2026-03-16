@@ -168,10 +168,11 @@ describe("insertImagesIntoHtml", () => {
     expect(result).toContain('loading="lazy"');
   });
 
-  it("uses figcaption with alt text", () => {
+  it("does not render figcaption to avoid exposing alt text as visible text", () => {
     const html = "<article><h1>T</h1></article>";
     const result = insertImagesIntoHtml(html, [img]);
-    expect(result).toContain("<figcaption>Alt text</figcaption>");
+    expect(result).not.toContain("<figcaption>");
+    expect(result).toContain('alt="Alt text"');
   });
 });
 
