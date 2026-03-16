@@ -12,9 +12,38 @@ export function calculateKeywordDensity(text: string, keyword: string): number {
   if (words.length === 0) return 0;
 
   const frequency = calculateKeywordFrequency(plainText, keyword);
-  const keywordWordCount = keyword.split(/\s+/).length;
 
-  return (frequency * keywordWordCount * 100) / words.length;
+  // Determine the actual word count of the matched phrase
+  // (may be shorter than keyword for partial matches)
+  const matchedWordCount = getMatchedPhraseWordCount(plainText, keyword);
+
+  return (frequency * matchedWordCount * 100) / words.length;
+}
+
+/**
+ * Get the word count of the phrase that actually matched in the text.
+ * For exact matches, returns the full keyword word count.
+ * For partial matches, returns the longest sub-phrase word count.
+ */
+function getMatchedPhraseWordCount(text: string, keyword: string): number {
+  const plainText = stripDiacritics(stripHtml(text).toLowerCase());
+  const kw = stripDiacritics(keyword.toLowerCase().trim());
+  const kwWords = kw.split(/\s+/).filter(Boolean);
+
+  // Exact match → full keyword
+  if (plainText.includes(kw)) return kwWords.length;
+
+  // Partial match → find longest sub-phrase
+  if (kwWords.length > 3) {
+    for (let windowSize = kwWords.length - 1; windowSize >= 3; windowSize--) {
+      for (let start = 0; start <= kwWords.length - windowSize; start++) {
+        const partial = kwWords.slice(start, start + windowSize).join(" ");
+        if (plainText.includes(partial)) return windowSize;
+      }
+    }
+  }
+
+  return kwWords.length; // fallback
 }
 
 /**
@@ -34,22 +63,22 @@ export function calculateKeywordFrequency(text: string, keyword: string): number
   }
   if (count > 0) return count;
 
-  // For multi-word keywords (>3 words), count partial matches
-  // using sliding window of contentWords (min 3 words from keyword)
+  // For multi-word keywords (>3 words), find the longest sub-phrase
+  // that appears in the text and count only that one
   const kwWords = kw.split(/\s+/).filter(Boolean);
   if (kwWords.length <= 3) return 0;
 
-  const minWindow = 3;
-  for (let windowSize = kwWords.length - 1; windowSize >= minWindow; windowSize--) {
+  for (let windowSize = kwWords.length - 1; windowSize >= 3; windowSize--) {
     for (let start = 0; start <= kwWords.length - windowSize; start++) {
       const partial = kwWords.slice(start, start + windowSize).join(" ");
+      let partialCount = 0;
       let partialPos = 0;
       while ((partialPos = plainText.indexOf(partial, partialPos)) !== -1) {
-        count++;
+        partialCount++;
         partialPos += partial.length;
       }
+      if (partialCount > 0) return partialCount;
     }
-    if (count > 0) return count;
   }
 
   return 0;
