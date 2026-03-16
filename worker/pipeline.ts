@@ -528,6 +528,9 @@ export async function runPipeline(
         publishHtml = publishHtml.replaceAll(supabaseUrl, firebaseUrl);
       }
 
+      // Strip H1 from content — nuxt-blog template renders its own H1 from the title
+      publishHtml = publishHtml.replace(/<h1[^>]*>[\s\S]*?<\/h1>/i, "");
+
       // Get featured image Firebase URL (first image)
       const featuredFirebaseUrl = bestResult.images.length > 0
         ? imageUrlMap.get(bestResult.images[0].url)
@@ -709,16 +712,17 @@ function buildLinks(
   for (const post of relatedPosts) {
     links.push({
       url: `https://${siteConfig.domain}/${post.slug}`,
-      anchorText: post.title,
+      anchorText: post.keyword,
       type: "internal",
     });
   }
 
-  // External links: use authoritative sources
+  // External links: use authoritative sources with descriptive anchor
   for (const source of siteConfig.authoritativeSources.slice(0, 2)) {
+    const domain = extractDomainName(source);
     links.push({
       url: source,
-      anchorText: extractDomainName(source),
+      anchorText: `fuente oficial: ${domain}`,
       type: "external",
     });
   }
