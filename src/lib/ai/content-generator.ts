@@ -73,7 +73,7 @@ Requisitos:
 - Idioma: Espanol
 - Rango de palabras: ${siteConfig.minWords}-${siteConfig.maxWords}
 - H1: titulo atractivo que incluya la keyword, MAXIMO 60 caracteres
-- metaTitle: version optimizada para CTR del H1, MAXIMO 60 caracteres, debe incluir la keyword
+- metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), debe incluir la keyword
 - 4-6 secciones H2, cada una con 1-3 H3 de apoyo
 - Cada H2 debe poder responder directamente una pregunta (formato LLM-friendly)
 - Seccion de FAQ con 3-5 preguntas antes de la conclusion
@@ -110,9 +110,9 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
     outline.h1 = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
   }
 
-  // Ensure metaTitle exists and respects length
-  if (!outline.metaTitle || outline.metaTitle.length > 60) {
-    outline.metaTitle = outline.h1.slice(0, 60);
+  // Ensure metaTitle exists and is short enough for " | Brand" suffix (~15 chars)
+  if (!outline.metaTitle || outline.metaTitle.length > 45) {
+    outline.metaTitle = outline.h1.slice(0, 45).trimEnd();
   }
 
   // Remove any H2 that duplicates the H1 (LLM sometimes generates this)
@@ -208,12 +208,31 @@ Para el HTML:
     .split(/\s+/)
     .filter(Boolean).length;
 
+  // Ensure FAQ uses <details>/<summary> structure
+  let html = content.html;
+  const faqItems = content.faqItems ?? [];
+  if (faqItems.length > 0 && !/<details/i.test(html)) {
+    const faqHtml = faqItems
+      .map((item) => `<details><summary>${item.question}</summary><p>${item.answer}</p></details>`)
+      .join("\n");
+    const faqSection = `<section class="faq">\n${faqHtml}\n</section>`;
+
+    // Replace existing FAQ heading + content, or append before closing </article>
+    const faqPattern = /<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>[\s\S]*?(?=<h2|<\/article>)/i;
+    if (faqPattern.test(html)) {
+      const faqHeading = html.match(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>/i)?.[0] ?? "";
+      html = html.replace(faqPattern, `${faqHeading}\n${faqSection}\n`);
+    } else if (html.includes("</article>")) {
+      html = html.replace("</article>", `${faqSection}\n</article>`);
+    }
+  }
+
   return {
-    html: content.html,
+    html,
     markdown: content.markdown,
     wordCount,
     metaDescription: content.metaDescription ?? "",
-    faqItems: content.faqItems ?? [],
+    faqItems,
   };
 }
 
