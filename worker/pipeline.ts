@@ -137,6 +137,23 @@ export async function runPipeline(
       // Step 3: Generate content
       await logStep(siteId, null, "content_generation", "started");
       const content = await generateContent(outline, keyword.phrase, siteConfig);
+
+      // Enforce minimum word count — reject and retry if too short
+      if (content.wordCount < siteConfig.minWords) {
+        await logStep(siteId, null, "content_generation", "failed", {
+          wordCount: content.wordCount,
+          minWords: siteConfig.minWords,
+          reason: `Content too short: ${content.wordCount} < ${siteConfig.minWords}`,
+        });
+        if (attempts < MAX_ATTEMPTS) {
+          await logStep(siteId, null, "regeneration", "started", {
+            reason: `Word count ${content.wordCount} < ${siteConfig.minWords}`,
+            attempt: attempts + 1,
+          });
+        }
+        continue;
+      }
+
       await logStep(siteId, null, "content_generation", "success", {
         wordCount: content.wordCount,
       });
