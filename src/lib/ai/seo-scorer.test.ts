@@ -20,6 +20,7 @@ function makeInput(overrides: Partial<ScorerInput> = {}): ScorerInput {
     keyword,
     metaTitle: `Guía de ${keyword}`,
     metaDescription: `Aprende todo sobre ${keyword} en esta guía completa.`,
+    slug: "guia-marketing-digital",
     images: [{ altText: "Imagen de marketing" }],
     links: [
       { type: "internal" },
@@ -27,6 +28,7 @@ function makeInput(overrides: Partial<ScorerInput> = {}): ScorerInput {
       { type: "conversion" },
     ],
     schemaJsonLd: { "@context": "https://schema.org" },
+    existingPostCount: 5,
     ...overrides,
   };
 }

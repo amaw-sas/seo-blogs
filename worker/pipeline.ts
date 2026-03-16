@@ -153,15 +153,16 @@ export async function runPipeline(
       });
 
       // Step 5: Generate SEO metadata
-      const slug = generateSlug(outline.h1);
-      const metaTitle = truncate(
-        `${outline.h1} | ${site.name}`,
-        60,
-      );
-      const metaDescription = truncate(
-        generateMetaDescription(content.html, keyword.phrase),
-        160,
-      );
+      const slug = generateSlug(keyword.phrase);
+      const metaTitle = outline.metaTitle
+        ? outline.metaTitle.slice(0, 60)
+        : truncate(`${keyword.phrase} | ${site.name}`, 60);
+      const metaDescription = content.metaDescription
+        ? content.metaDescription.slice(0, 160)
+        : truncate(
+            generateMetaDescription(content.html, keyword.phrase),
+            160,
+          );
       const tags = extractTags(outline, keyword.phrase);
 
       const schema = generateArticleSchema(
@@ -204,9 +205,11 @@ export async function runPipeline(
         keyword: keyword.phrase,
         metaTitle,
         metaDescription,
+        slug,
         images: images.map((img) => ({ altText: img.altText })),
         links: links.map((l) => ({ type: l.type })),
         schemaJsonLd: schema,
+        existingPostCount: site.posts.length,
       };
 
       const scoreResult = calculateSeoScore(scorerInput);
@@ -812,16 +815,29 @@ function insertSchemaScript(
   return `${html}\n${scriptTag}`;
 }
 
-function generateSlug(title: string): string {
-  return title
+const SPANISH_STOPWORDS = new Set([
+  "de", "del", "la", "las", "el", "los", "en", "un", "una", "unos", "unas",
+  "para", "por", "con", "sin", "sobre", "entre", "hasta", "desde", "hacia",
+  "que", "cual", "como", "donde", "cuando", "es", "son", "ser", "estar",
+  "hay", "fue", "sido", "siendo", "al", "lo", "le", "les", "se", "su", "sus",
+  "y", "o", "ni", "pero", "sino", "mas", "menos", "muy", "tan", "este",
+  "esta", "estos", "estas", "ese", "esa", "esos", "esas", "aquel", "aquella",
+]);
+
+function generateSlug(text: string): string {
+  const normalized = text
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 150);
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim();
+
+  const words = normalized
+    .split(/\s+/)
+    .filter((w) => w.length > 0 && !SPANISH_STOPWORDS.has(w))
+    .slice(0, 5);
+
+  return words.join("-").slice(0, 60);
 }
 
 function generateMetaDescription(html: string, keyword: string): string {
@@ -881,7 +897,7 @@ function extractDomainName(url: string): string {
 
 // ── Exports for testing ─────────────────────────────────────
 export { generateSlug, generateMetaDescription, extractTags, truncate,
-         insertImagesIntoHtml, insertLinksIntoHtml, buildLinks };
+         insertImagesIntoHtml, insertLinksIntoHtml, buildLinks, SPANISH_STOPWORDS };
 
 async function logStep(
   siteId: string,

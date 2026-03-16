@@ -12,33 +12,44 @@ import {
 // ── generateSlug ────────────────────────────────────────────
 
 describe("generateSlug", () => {
-  it("converts title to lowercase slug", () => {
-    expect(generateSlug("Guía de SEO")).toBe("guia-de-seo");
+  it("converts text to lowercase slug filtering stopwords", () => {
+    expect(generateSlug("Guía de SEO")).toBe("guia-seo");
   });
 
   it("removes diacritics", () => {
     expect(generateSlug("Información útil")).toBe("informacion-util");
   });
 
-  it("removes special characters", () => {
-    expect(generateSlug("¿Qué es SEO?")).toBe("que-es-seo");
+  it("removes special characters and filters stopwords", () => {
+    expect(generateSlug("¿Qué es SEO?")).toBe("seo");
   });
 
-  it("collapses multiple hyphens", () => {
+  it("collapses whitespace into single hyphens", () => {
     expect(generateSlug("uno  -  dos")).toBe("uno-dos");
   });
 
-  it("trims leading/trailing hyphens", () => {
+  it("trims leading/trailing whitespace", () => {
     expect(generateSlug("  hola mundo  ")).toBe("hola-mundo");
   });
 
-  it("truncates to 150 characters", () => {
-    const longTitle = "a".repeat(200);
-    expect(generateSlug(longTitle).length).toBeLessThanOrEqual(150);
+  it("limits to 5 words and 60 characters", () => {
+    const input = "primero segundo tercero cuarto quinto sexto septimo";
+    const slug = generateSlug(input);
+    expect(slug.split("-").length).toBeLessThanOrEqual(5);
+    expect(slug.length).toBeLessThanOrEqual(60);
+  });
+
+  it("truncates to 60 characters", () => {
+    const longWord = "a".repeat(200);
+    expect(generateSlug(longWord).length).toBeLessThanOrEqual(60);
   });
 
   it("handles empty string", () => {
     expect(generateSlug("")).toBe("");
+  });
+
+  it("filters all Spanish stopwords", () => {
+    expect(generateSlug("el mejor hosting para blogs")).toBe("mejor-hosting-blogs");
   });
 });
 

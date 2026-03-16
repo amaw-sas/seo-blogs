@@ -44,6 +44,7 @@ export async function generatePostImages(
     });
 
     const b64Data = response.data?.[0]?.b64_json;
+    const revisedPrompt = response.data?.[0]?.revised_prompt ?? "";
     if (!b64Data) {
       throw new Error(`DALL-E returned no image data for image ${i + 1}`);
     }
@@ -53,9 +54,7 @@ export async function generatePostImages(
 
     const metadata = await sharp(compressed).metadata();
 
-    const altText = isHero
-      ? `${keyword} - ${title}`
-      : `${keyword} - ilustracion ${i + 1}`;
+    const altText = generateAltText(revisedPrompt, keyword, isHero, i);
 
     images.push({
       buffer: compressed,
@@ -70,6 +69,34 @@ export async function generatePostImages(
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+
+function generateAltText(
+  revisedPrompt: string,
+  keyword: string,
+  isHero: boolean,
+  index: number,
+): string {
+  if (revisedPrompt) {
+    // Extract first descriptive sentence from DALL-E's revised prompt, translate to Spanish-friendly alt
+    const cleaned = revisedPrompt
+      .replace(/ultra realistic photography,?\s*/i, "")
+      .replace(/Article topic:.*?Title:.*?\./i, "")
+      .replace(/No text.*$/i, "")
+      .replace(/,\s*16:9.*$/i, "")
+      .trim();
+
+    // Take first meaningful chunk, max 125 chars
+    const firstSentence = cleaned.split(/[.!]/).filter(Boolean)[0]?.trim() ?? "";
+    if (firstSentence.length > 10) {
+      return firstSentence.slice(0, 125);
+    }
+  }
+
+  // Fallback: descriptive alt based on keyword and position
+  return isHero
+    ? `Fotografia sobre ${keyword}`
+    : `Detalle visual relacionado con ${keyword}`;
+}
 
 function buildImagePrompt(
   title: string,
@@ -115,3 +142,6 @@ async function compressToWebP(
     .webp({ quality: 5 })
     .toBuffer();
 }
+
+// ── Exports for testing ─────────────────────────────────────
+export { generateAltText };

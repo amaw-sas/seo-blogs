@@ -17,9 +17,11 @@ export interface ScorerInput {
   keyword: string;
   metaTitle: string;
   metaDescription: string;
+  slug: string;
   images: { altText: string }[];
   links: { type: "internal" | "external" | "conversion" }[];
   schemaJsonLd: Record<string, unknown> | null;
+  existingPostCount: number;
 }
 
 export interface ScoreBreakdown {
@@ -27,7 +29,7 @@ export interface ScoreBreakdown {
   keywordInH2s: { score: number; max: 10; pass: boolean };
   faqPresent: { score: number; max: 10; pass: boolean };
   imagesWithAlt: { score: number; max: 10; pass: boolean };
-  internalLinks: { score: number; max: 10; pass: boolean };
+  internalLinks: { score: number; max: 5; pass: boolean };
   externalLinks: { score: number; max: 5; pass: boolean };
   conversionLink: { score: number; max: 5; pass: boolean };
   metaTitleOptimal: { score: number; max: 10; pass: boolean };
@@ -35,6 +37,8 @@ export interface ScoreBreakdown {
   keywordDensityOk: { score: number; max: 10; pass: boolean };
   schemaPresent: { score: number; max: 5; pass: boolean };
   conclusionPresent: { score: number; max: 5; pass: boolean };
+  slugLength: { score: number; max: 5; pass: boolean };
+  h1Length: { score: number; max: 5; pass: boolean };
 }
 
 export interface SeoScoreResult {
@@ -121,6 +125,15 @@ export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
   // Density check
   const densityOk = density < 2.5 && density > 0;
 
+  // Slug length check (max 5 words)
+  const slugWords = post.slug.split("-").filter(Boolean).length;
+  const slugOk = slugWords <= 5 && slugWords > 0;
+
+  // H1 length check (max 70 chars)
+  const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  const h1Text = h1Match ? stripHtml(h1Match[1]) : "";
+  const h1LengthOk = h1Text.length > 0 && h1Text.length <= 70;
+
   // Build breakdown
   const breakdown: ScoreBreakdown = {
     keywordInFirst100Words: {
@@ -132,9 +145,9 @@ export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
     faqPresent: { score: hasFaq ? 10 : 0, max: 10, pass: hasFaq },
     imagesWithAlt: { score: imagesPass ? 10 : 0, max: 10, pass: imagesPass },
     internalLinks: {
-      score: internalLinks.length > 0 ? 10 : 0,
-      max: 10,
-      pass: internalLinks.length > 0,
+      score: post.existingPostCount === 0 || internalLinks.length > 0 ? 5 : 0,
+      max: 5,
+      pass: post.existingPostCount === 0 || internalLinks.length > 0,
     },
     externalLinks: {
       score: externalLinks.length > 0 ? 5 : 0,
@@ -159,6 +172,8 @@ export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
       max: 5,
       pass: hasConclusion,
     },
+    slugLength: { score: slugOk ? 5 : 0, max: 5, pass: slugOk },
+    h1Length: { score: h1LengthOk ? 5 : 0, max: 5, pass: h1LengthOk },
   };
 
   const totalScore = Object.values(breakdown).reduce(

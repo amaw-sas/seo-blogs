@@ -66,6 +66,7 @@ const siteConfig: SiteConfig = {
 
 const validOutline: PostOutline = {
   h1: "Mejores zapatos para correr en 2025",
+  metaTitle: "Mejores Zapatos para Correr 2025",
   sections: [
     { tag: "h2", text: "Qué buscar", children: [{ tag: "h3", text: "Amortiguación" }] },
     { tag: "h2", text: "Top 5 modelos", children: [] },
@@ -136,6 +137,35 @@ describe("generateOutline", () => {
 
     await expect(generateOutline("zapatos", siteConfig)).rejects.toThrow();
   });
+
+  it("truncates H1 longer than 70 chars at word boundary", async () => {
+    const longH1Outline = {
+      ...validOutline,
+      h1: "Esta es una guia extremadamente larga sobre los mejores zapatos deportivos para correr maratones",
+    };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(longH1Outline));
+
+    const result = await generateOutline("zapatos para correr", siteConfig);
+    expect(result.h1.length).toBeLessThanOrEqual(60);
+  });
+
+  it("sets metaTitle from h1 when AI omits it", async () => {
+    const noMetaOutline = { ...validOutline, metaTitle: undefined };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(noMetaOutline));
+
+    const result = await generateOutline("zapatos para correr", siteConfig);
+    expect(result.metaTitle).toBeDefined();
+    expect(result.metaTitle.length).toBeLessThanOrEqual(60);
+  });
+
+  it("includes anti-pattern rules in content prompt", async () => {
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(validOutline));
+    await generateOutline("zapatos para correr", siteConfig);
+
+    const prompt = mockChatCompletion.mock.calls[0]![0];
+    expect(prompt).toContain("MAXIMO 60 caracteres");
+    expect(prompt).toContain("metaTitle");
+  });
 });
 
 describe("generateContent", () => {
@@ -146,6 +176,7 @@ describe("generateContent", () => {
   const validContent = {
     html: "<article><h1>Title</h1><p>Word one two three four five</p></article>",
     markdown: "# Title\nWord one two three four five",
+    metaDescription: "Descubre los mejores zapatos para correr en 2025. Guia completa con precios.",
     faqItems: [{ question: "Q?", answer: "A." }],
   };
 
@@ -186,5 +217,31 @@ describe("generateContent", () => {
 
     const result = await generateContent(validOutline, "kw", siteConfig);
     expect(result.faqItems).toEqual([]);
+  });
+
+  it("returns metaDescription from AI response", async () => {
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(validContent));
+
+    const result = await generateContent(validOutline, "zapatos", siteConfig);
+    expect(result.metaDescription).toContain("zapatos");
+  });
+
+  it("defaults metaDescription to empty string when missing", async () => {
+    const content = { html: "<p>x</p>", markdown: "x" };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(content));
+
+    const result = await generateContent(validOutline, "kw", siteConfig);
+    expect(result.metaDescription).toBe("");
+  });
+
+  it("includes anti-pattern rules in content prompt", async () => {
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(validContent));
+    await generateContent(validOutline, "zapatos", siteConfig);
+
+    const prompt = mockChatCompletion.mock.calls[0]![0];
+    expect(prompt).toContain("PROHIBIDO");
+    expect(prompt).toContain("En el mundo actual");
+    expect(prompt).toContain("CERO texto en ingles");
+    expect(prompt).toContain("metaDescription");
   });
 });
