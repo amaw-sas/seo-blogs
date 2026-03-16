@@ -23,6 +23,7 @@ interface NuxtBlogSyncPayload {
   _embedded?: {
     "wp:featuredmedia"?: [{ source_url: string; alt_text: string }];
   };
+  faqItems?: { question: string; answer: string }[];
 }
 
 // ── Public API ───────────────────────────────────────────────
@@ -41,6 +42,7 @@ export async function publishToNuxtBlog(
     metaDescription: string;
     featuredImageUrl?: string;
     featuredImageAlt?: string;
+    faqItems?: { question: string; answer: string }[];
   },
   site: NuxtBlogSiteConfig,
 ): Promise<string> {
@@ -50,6 +52,7 @@ export async function publishToNuxtBlog(
     excerpt: { rendered: post.metaDescription },
     slug: post.slug,
     date: new Date().toISOString(),
+    faqItems: post.faqItems,
   };
 
   if (post.featuredImageUrl) {
