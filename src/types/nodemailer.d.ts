@@ -23,5 +23,6 @@ declare module "nodemailer" {
 
   function createTransport(options: TransportOptions): Transporter;
 
-  export default { createTransport };
+  const nodemailer: { createTransport: typeof createTransport };
+  export default nodemailer;
 }

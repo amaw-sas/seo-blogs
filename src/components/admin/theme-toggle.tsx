@@ -9,13 +9,16 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
     const stored = localStorage.getItem("theme");
     const isDark =
       stored === "dark" ||
       (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setDark(isDark);
     document.documentElement.classList.toggle("dark", isDark);
+    // Batch state updates after external system sync
+    queueMicrotask(() => {
+      setMounted(true);
+      setDark(isDark);
+    });
   }, []);
 
   function toggle() {

@@ -123,7 +123,7 @@ function PipelineProgressDialog({
 
   useEffect(() => {
     if (!open) return;
-    poll();
+    poll(); // eslint-disable-line react-hooks/set-state-in-effect -- polling pattern: poll() is a stable callback that fetches external data
     intervalRef.current = setInterval(poll, 3000);
 
     // Auto-stop after 5.5 min (matches maxDuration=300s + buffer)
