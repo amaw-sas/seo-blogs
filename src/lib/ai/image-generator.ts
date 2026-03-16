@@ -88,11 +88,13 @@ function buildImagePrompt(
   keyword: string,
   isHero: boolean,
 ): string {
+  const noTextRule = "CRITICAL: The image must contain ZERO text, ZERO letters, ZERO numbers, ZERO words, ZERO signs, ZERO labels, ZERO captions anywhere in the image. No watermarks, no logos, no visible faces.";
+
   if (isHero) {
-    return `Documentary photograph taken with a Canon EOS R5, 35mm lens, f/2.8, ISO 400. Subject: a real scene directly related to "${keyword}". Shot on location with available ambient light, slight grain, natural imperfections. No digital art, no illustrations, no 3D renders, no AI-generated look. No text, no watermarks, no logos, no visible faces. 16:9 composition.`;
+    return `Documentary photograph taken with a Canon EOS R5, 35mm lens, f/2.8, ISO 400. Subject: a real scene directly related to "${keyword}". Shot on location with available ambient light, slight grain, natural imperfections. No digital art, no illustrations, no 3D renders, no AI-generated look. ${noTextRule} 16:9 composition.`;
   }
 
-  return `Editorial photograph shot with a Sony A7IV, 85mm lens, f/1.8. A close-up detail related to "${keyword}". Shallow depth of field, natural window light, muted warm tones, slight lens flare. Authentic documentary style, NOT stock photography, NOT digital art. No text, no watermarks, no logos, no visible faces. 16:9 format.`;
+  return `Editorial photograph shot with a Sony A7IV, 85mm lens, f/1.8. A close-up detail related to "${keyword}". Shallow depth of field, natural window light, muted warm tones, slight lens flare. Authentic documentary style, NOT stock photography, NOT digital art. ${noTextRule} 16:9 format.`;
 }
 
 /**

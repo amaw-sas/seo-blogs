@@ -588,20 +588,6 @@ export async function runPipeline(
       // Strip H1 from content — nuxt-blog template renders its own H1 from the title
       publishHtml = publishHtml.replace(/<h1[^>]*>[\s\S]*?<\/h1>/i, "");
 
-      // Inject FAQPage schema into content (nuxt-blog doesn't sanitize <script> tags)
-      if (bestResult.faqItems.length > 0) {
-        const faqSchema = JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "FAQPage",
-          mainEntity: bestResult.faqItems.map((faq) => ({
-            "@type": "Question",
-            name: faq.question,
-            acceptedAnswer: { "@type": "Answer", text: faq.answer },
-          })),
-        });
-        publishHtml += `\n<script type="application/ld+json">${faqSchema}</script>`;
-      }
-
       // Get featured image Firebase URL (first image)
       const featuredFirebaseUrl = bestResult.images.length > 0
         ? imageUrlMap.get(bestResult.images[0].url)
