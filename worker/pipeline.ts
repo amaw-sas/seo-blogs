@@ -9,6 +9,8 @@ import {
   generateOutline,
   generateContent,
   type SiteConfig,
+  type PostOutline,
+  type GeneratedContent,
 } from "../src/lib/ai/content-generator";
 import { analyzeCompetition, type CompetitionAnalysis } from "../src/lib/ai/competition-analyzer";
 import { generatePostImages } from "../src/lib/ai/image-generator";
@@ -124,6 +126,8 @@ export async function runPipeline(
 
   const MAX_ATTEMPTS = 3;
   let attempts = 0;
+  // Track best short content as fallback when all attempts fail word count
+  let bestShortContent: { outline: PostOutline; content: GeneratedContent } | null = null;
 
   for (attempts = 1; attempts <= MAX_ATTEMPTS; attempts++) {
     try {
@@ -145,6 +149,12 @@ export async function runPipeline(
           minWords: siteConfig.minWords,
           reason: `Content too short: ${content.wordCount} < ${siteConfig.minWords}`,
         });
+
+        // Keep track of the best short content as fallback for last attempt
+        if (!bestShortContent || content.wordCount > bestShortContent.content.wordCount) {
+          bestShortContent = { outline, content };
+        }
+
         if (attempts < MAX_ATTEMPTS) {
           await logStep(siteId, null, "regeneration", "started", {
             reason: `Word count ${content.wordCount} < ${siteConfig.minWords}`,
@@ -277,6 +287,53 @@ export async function runPipeline(
         );
       }
     }
+  }
+
+  // If no attempt met the word count threshold, use the best short content as fallback
+  if (!bestResult && bestShortContent) {
+    await logStep(siteId, null, "word_count_fallback", "started", {
+      wordCount: bestShortContent.content.wordCount,
+      minWords: siteConfig.minWords,
+    });
+
+    const { outline, content } = bestShortContent;
+    const images = await generateAndUploadImages(outline.h1, keyword.phrase, siteId);
+    const slug = generateSlug(keyword.phrase);
+    const metaTitle = outline.metaTitle
+      ? outline.metaTitle.slice(0, 60)
+      : truncate(`${keyword.phrase} | ${site.name}`, 60);
+    const metaDescription = content.metaDescription
+      ? content.metaDescription.slice(0, 160)
+      : truncate(generateMetaDescription(content.html, keyword.phrase), 160);
+    const tags = extractTags(outline, keyword.phrase);
+    const schema = generateArticleSchema(
+      {
+        title: outline.h1, slug, metaDescription, keyword: keyword.phrase,
+        contentHtml: content.html,
+        images: images.map((img) => ({ url: img.url, altText: img.altText, width: img.width, height: img.height })),
+        wordCount: content.wordCount, readingTimeMinutes: calculateReadingTime(content.wordCount),
+        hasFaq: content.faqItems.length > 0, faqItems: content.faqItems,
+      },
+      { domain: site.domain, name: site.name },
+    );
+    const links = buildLinks(site.posts, siteConfig, keyword.phrase);
+    let enrichedHtml = insertImagesIntoHtml(content.html, images);
+    enrichedHtml = insertLinksIntoHtml(enrichedHtml, links);
+    const scorerInput: ScorerInput = {
+      contentHtml: enrichedHtml, keyword: keyword.phrase, metaTitle, metaDescription, slug,
+      images: images.map((img) => ({ altText: img.altText })),
+      links: links.map((l) => ({ type: l.type })),
+      schemaJsonLd: schema, existingPostCount: site.posts.length,
+    };
+    const scoreResult = calculateSeoScore(scorerInput);
+
+    bestResult = {
+      h1: outline.h1, html: enrichedHtml, markdown: content.markdown,
+      wordCount: content.wordCount, faqItems: content.faqItems,
+      images, links, metaTitle, metaDescription, slug, tags, schema,
+      seoScore: scoreResult.totalScore,
+    };
+    attempts = MAX_ATTEMPTS;
   }
 
   if (!bestResult) {
