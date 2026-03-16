@@ -711,7 +711,7 @@ function buildLinks(
 
   for (const post of relatedPosts) {
     links.push({
-      url: `https://${siteConfig.domain}/${post.slug}`,
+      url: `/${post.slug}`,
       anchorText: post.keyword,
       type: "internal",
     });

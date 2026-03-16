@@ -239,7 +239,7 @@ describe("buildLinks", () => {
     const links = buildLinks(posts, siteConfig, "new keyword");
     const internal = links.filter((l) => l.type === "internal");
     expect(internal).toHaveLength(3);
-    expect(internal[0].url).toBe("https://example.com/post-1");
+    expect(internal[0].url).toBe("/post-1");
   });
 
   it("excludes posts with the same keyword", () => {
