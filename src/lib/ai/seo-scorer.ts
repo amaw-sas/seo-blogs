@@ -62,9 +62,9 @@ export interface SeoScoreResult {
 
 export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
   const html = post.contentHtml;
-  const kw = post.keyword.toLowerCase();
+  const kw = stripDiacritics(post.keyword.toLowerCase());
   const plainText = stripHtml(html);
-  const plainLower = plainText.toLowerCase();
+  const plainLower = stripDiacritics(plainText.toLowerCase());
 
   const words = plainText.split(/\s+/).filter(Boolean);
   const wordCount = words.length;
@@ -76,11 +76,11 @@ export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
   const readability = calculateReadabilityScore(html);
 
   // Distribution checks
-  const first100 = words.slice(0, 100).join(" ").toLowerCase();
+  const first100 = stripDiacritics(words.slice(0, 100).join(" ").toLowerCase());
   const firstHundredWords = first100.includes(kw);
 
   const h2Matches = html.match(/<h2[^>]*>([\s\S]*?)<\/h2>/gi) ?? [];
-  const h2Texts = h2Matches.map((h) => stripHtml(h).toLowerCase());
+  const h2Texts = h2Matches.map((h) => stripDiacritics(stripHtml(h).toLowerCase()));
   const inH2s = h2Texts.some((t) => t.includes(kw));
 
   const inBody = plainLower.includes(kw);
@@ -200,6 +200,10 @@ export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+
+function stripDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 function stripHtml(text: string): string {
   return text

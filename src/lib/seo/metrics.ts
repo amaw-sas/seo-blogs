@@ -21,8 +21,8 @@ export function calculateKeywordDensity(text: string, keyword: string): number {
  * Count how many times the keyword phrase appears in the text (case-insensitive).
  */
 export function calculateKeywordFrequency(text: string, keyword: string): number {
-  const plainText = stripHtml(text).toLowerCase();
-  const kw = keyword.toLowerCase().trim();
+  const plainText = stripDiacritics(stripHtml(text).toLowerCase());
+  const kw = stripDiacritics(keyword.toLowerCase().trim());
   if (!kw) return 0;
 
   let count = 0;
@@ -71,6 +71,10 @@ export function calculateReadabilityScore(text: string): number {
 }
 
 // ── Helpers ──────────────────────────────────────────────────
+
+function stripDiacritics(text: string): string {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 
 function stripHtml(text: string): string {
   return text

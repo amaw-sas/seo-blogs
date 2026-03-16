@@ -115,6 +115,14 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
     outline.metaTitle = outline.h1.slice(0, 60);
   }
 
+  // Remove any H2 that duplicates the H1 (LLM sometimes generates this)
+  if (outline.h1 && outline.sections?.length) {
+    const h1Lower = outline.h1.toLowerCase();
+    outline.sections = outline.sections.filter(
+      (s) => s.text.toLowerCase() !== h1Lower,
+    );
+  }
+
   // Validate minimum structure
   if (!outline.h1 || !outline.sections?.length || !outline.faqQuestions?.length) {
     throw new Error("Generated outline is missing required fields");
