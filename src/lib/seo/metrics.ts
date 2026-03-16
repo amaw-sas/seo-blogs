@@ -25,13 +25,34 @@ export function calculateKeywordFrequency(text: string, keyword: string): number
   const kw = stripDiacritics(keyword.toLowerCase().trim());
   if (!kw) return 0;
 
+  // Exact match first
   let count = 0;
   let pos = 0;
   while ((pos = plainText.indexOf(kw, pos)) !== -1) {
     count++;
     pos += kw.length;
   }
-  return count;
+  if (count > 0) return count;
+
+  // For multi-word keywords (>3 words), count partial matches
+  // using sliding window of contentWords (min 3 words from keyword)
+  const kwWords = kw.split(/\s+/).filter(Boolean);
+  if (kwWords.length <= 3) return 0;
+
+  const minWindow = 3;
+  for (let windowSize = kwWords.length - 1; windowSize >= minWindow; windowSize--) {
+    for (let start = 0; start <= kwWords.length - windowSize; start++) {
+      const partial = kwWords.slice(start, start + windowSize).join(" ");
+      let partialPos = 0;
+      while ((partialPos = plainText.indexOf(partial, partialPos)) !== -1) {
+        count++;
+        partialPos += partial.length;
+      }
+    }
+    if (count > 0) return count;
+  }
+
+  return 0;
 }
 
 /**

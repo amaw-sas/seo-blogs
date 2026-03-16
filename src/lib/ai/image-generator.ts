@@ -71,41 +71,13 @@ export async function generatePostImages(
 // ── Helpers ──────────────────────────────────────────────────
 
 function generateAltText(
-  revisedPrompt: string,
+  _revisedPrompt: string,
   keyword: string,
   isHero: boolean,
-  index: number,
+  _index: number,
 ): string {
-  if (revisedPrompt) {
-    // Extract first descriptive sentence from DALL-E's revised prompt
-    const cleaned = revisedPrompt
-      .replace(/^Create an?\s+/i, "")
-      .replace(/ultra[- ]?realistic?\s+(photography|photograph|photo|image),?\s*/gi, "")
-      .replace(/Article topic:.*?Title:.*?\./i, "")
-      .replace(/No text.*$/i, "")
-      .replace(/,\s*16:9.*$/i, "")
-      .replace(/,?\s*highly detailed.*$/i, "")
-      .trim();
-
-    // Take first meaningful chunk, max 125 chars
-    const firstSentence = cleaned.split(/[.!]/).filter(Boolean)[0]?.trim() ?? "";
-
-    // Only use if result is meaningful (>10 chars) and in Spanish, otherwise fallback
-    if (firstSentence.length > 10) {
-      // Detect English content — if mostly English, use Spanish fallback instead
-      const englishIndicators = /\b(the|with|and|for|that|this|from|scene|captures?|showing)\b/gi;
-      const matches = firstSentence.match(englishIndicators) ?? [];
-      if (matches.length >= 2) {
-        // English content detected — use Spanish fallback
-        return isHero
-          ? `Fotografia sobre ${keyword}`
-          : `Detalle visual relacionado con ${keyword}`;
-      }
-      return firstSentence.slice(0, 125);
-    }
-  }
-
-  // Fallback: descriptive alt based on keyword and position
+  // DALL-E revised_prompt is always in English — never suitable for Spanish alt text.
+  // Always use descriptive Spanish fallback based on keyword.
   return isHero
     ? `Fotografia sobre ${keyword}`
     : `Detalle visual relacionado con ${keyword}`;
