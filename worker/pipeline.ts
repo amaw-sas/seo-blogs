@@ -169,11 +169,23 @@ export async function runPipeline(
       });
 
       // Step 4: Generate images & upload to Supabase
+      // Extract section contexts for contextual image generation:
+      // - Hero: uses H1 (title context)
+      // - Content images: use H2 of the section where they'll be inserted
+      //   (before FAQ or before last H2 = typically the middle sections)
       await logStep(siteId, null, "image_generation", "started");
+      const nonFaqSections = outline.sections.filter(
+        (s) => !/faq|preguntas frecuentes/i.test(s.text),
+      );
+      const midSectionIdx = Math.floor(nonFaqSections.length * 0.6);
+      const sectionContexts = nonFaqSections
+        .slice(midSectionIdx, midSectionIdx + 2)
+        .map((s) => s.text);
       const images = await generateAndUploadImages(
         outline.h1,
         keyword.phrase,
         siteId,
+        sectionContexts,
       );
       await logStep(siteId, null, "image_generation", "success", {
         count: images.length,
@@ -297,7 +309,11 @@ export async function runPipeline(
     });
 
     const { outline, content } = bestShortContent;
-    const images = await generateAndUploadImages(outline.h1, keyword.phrase, siteId);
+    const fallbackSections = outline.sections
+      .filter((s) => !/faq|preguntas frecuentes/i.test(s.text))
+      .slice(Math.floor(outline.sections.length * 0.6))
+      .map((s) => s.text);
+    const images = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections);
     const slug = generateSlug(keyword.phrase);
     const metaTitle = outline.metaTitle
       ? outline.metaTitle.slice(0, 60)
@@ -705,6 +721,7 @@ async function generateAndUploadImages(
   title: string,
   keyword: string,
   siteId: string,
+  sectionContexts?: string[],
 ): Promise<UploadedImage[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -714,7 +731,7 @@ async function generateAndUploadImages(
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const rawImages = await generatePostImages(title, keyword, 2);
+  const rawImages = await generatePostImages(title, keyword, 2, sectionContexts);
   const uploaded: UploadedImage[] = [];
 
   for (let i = 0; i < rawImages.length; i++) {

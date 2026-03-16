@@ -26,13 +26,15 @@ export async function generatePostImages(
   title: string,
   keyword: string,
   count: number = 2,
+  sectionContexts?: string[],
 ): Promise<GeneratedImage[]> {
   const client = getClient();
   const images: GeneratedImage[] = [];
 
   for (let i = 0; i < count; i++) {
     const isHero = i === 0;
-    const prompt = buildImagePrompt(title, keyword, isHero);
+    const context = isHero ? title : (sectionContexts?.[i - 1] ?? title);
+    const prompt = buildImagePrompt(context, keyword, isHero);
 
     const response = await client.images.generate({
       model: "dall-e-3",
@@ -84,18 +86,15 @@ function generateAltText(
 }
 
 function buildImagePrompt(
-  title: string,
+  context: string,
   keyword: string,
   isHero: boolean,
 ): string {
-  // Use title for scene context. Avoid camera brand names — DALL-E renders them literally.
-  const scene = title;
-
   if (isHero) {
-    return `Wide-angle photograph, 35mm perspective, f/2.8 aperture. Scene: ${scene}. Colombian setting, warm tropical sunlight, vivid natural colors, travel photography style. 16:9 composition. Only the landscape and environment, no people, no devices, no screens.`;
+    return `Wide-angle photograph, 35mm perspective, f/2.8 aperture. Scene: ${context}. Colombian setting, warm tropical sunlight, vivid natural colors, travel photography style. 16:9 composition. Only the landscape and environment, no people, no devices, no screens.`;
   }
 
-  return `Close-up detail photograph, 85mm perspective, shallow depth of field. Subject related to: ${scene}. Natural light, warm tones, editorial travel style. 16:9 format. Only the subject, no people, no devices, no screens.`;
+  return `Close-up detail photograph, 85mm perspective, shallow depth of field. Subject: ${context}. Colombian setting, natural light, warm tones, editorial travel style. 16:9 format. Only the subject, no people, no devices, no screens.`;
 }
 
 /**
