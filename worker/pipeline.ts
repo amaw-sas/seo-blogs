@@ -618,6 +618,7 @@ export async function runPipeline(
           slug: bestResult.slug,
           contentHtml: publishHtml,
           metaDescription: bestResult.metaDescription,
+          metaTitle: bestResult.metaTitle,
           featuredImageUrl: featuredFirebaseUrl,
           featuredImageAlt: bestResult.images[0]?.altText,
           faqItems: bestResult.faqItems.length > 0 ? bestResult.faqItems : undefined,

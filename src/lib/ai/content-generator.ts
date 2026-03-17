@@ -150,7 +150,7 @@ Keyword principal: "${keyword}"
 
 Requisitos OBLIGATORIOS:
 1. Idioma: Espanol (Latinoamerica) — CERO texto en ingles, todo el contenido debe ser en espanol
-2. Longitud MINIMA: ${siteConfig.minWords} palabras (MAXIMO ${siteConfig.maxWords}). Esto NO es opcional — si el articulo tiene menos de ${siteConfig.minWords} palabras sera RECHAZADO. Desarrolla cada seccion con profundidad suficiente: ejemplos concretos, datos, comparaciones.
+2. Longitud MINIMA: ${siteConfig.minWords} palabras (MAXIMO ${siteConfig.maxWords}). Esto NO es opcional — si el articulo tiene menos de ${siteConfig.minWords} palabras sera RECHAZADO. Cada seccion H2 debe tener MINIMO 3 parrafos (no contar FAQ ni Conclusion). Cuenta las palabras antes de responder — si no llegas a ${siteConfig.minWords}, expande las secciones mas cortas con ejemplos concretos, datos y comparaciones.
 3. La keyword "${keyword}" DEBE aparecer MINIMO 3 veces en el articulo: una en las primeras 100 palabras, una en el cuerpo central, y una en la conclusion o parrafo final. Idealmente 4 veces. NO en oraciones consecutivas, fluir natural.
 4. Cada seccion H2 debe abrir con una respuesta directa y concisa (2-3 oraciones) antes de profundizar — esto es critico para que los LLMs extraigan la respuesta
 4b. Cada parrafo debe tener MINIMO 50 palabras. Desarrollar ideas con ejemplos concretos, comparaciones o datos — NO definiciones de 1-2 oraciones. Si un parrafo tiene menos de 3 oraciones, es insuficiente.

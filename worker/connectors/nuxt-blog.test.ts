@@ -86,6 +86,27 @@ describe("nuxt-blog connector", () => {
       expect(body.date).toBeDefined();
     });
 
+    it("includes metaTitle in payload when provided", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+      await publishToNuxtBlog(
+        { ...mockPost, metaTitle: "Carros para Alquilar | Blog" },
+        mockSite,
+      );
+
+      const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0]![1]?.body as string);
+      expect(body.metaTitle).toBe("Carros para Alquilar | Blog");
+    });
+
+    it("omits metaTitle from payload when not provided", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+      await publishToNuxtBlog(mockPost, mockSite);
+
+      const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0]![1]?.body as string);
+      expect(body.metaTitle).toBeUndefined();
+    });
+
     it("includes featured image in _embedded when provided", async () => {
       vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({ ok: true }));
 

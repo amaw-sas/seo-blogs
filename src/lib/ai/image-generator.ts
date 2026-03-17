@@ -56,7 +56,7 @@ export async function generatePostImages(
 
     const metadata = await sharp(compressed).metadata();
 
-    const altText = generateAltText(revisedPrompt, keyword, isHero, i);
+    const altText = generateAltText(revisedPrompt, keyword, isHero, i, context);
 
     images.push({
       buffer: compressed,
@@ -77,9 +77,16 @@ function generateAltText(
   keyword: string,
   isHero: boolean,
   _index: number,
+  context: string,
 ): string {
   // DALL-E revised_prompt is always in English — never suitable for Spanish alt text.
-  // Always use descriptive Spanish fallback based on keyword.
+  // Use section/post context (H2 title) for specific, descriptive alt text.
+  // Fall back to keyword-based text only when context is empty.
+  const trimmed = context.trim();
+  if (trimmed) {
+    const cap = 100;
+    return trimmed.length > cap ? trimmed.slice(0, cap).trimEnd() : trimmed;
+  }
   return isHero
     ? `Fotografia sobre ${keyword}`
     : `Detalle visual relacionado con ${keyword}`;

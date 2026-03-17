@@ -20,6 +20,7 @@ interface NuxtBlogSyncPayload {
   excerpt: { rendered: string };
   slug: string;
   date: string;
+  metaTitle?: string;
   _embedded?: {
     "wp:featuredmedia"?: [{ source_url: string; alt_text: string }];
   };
@@ -40,6 +41,7 @@ export async function publishToNuxtBlog(
     slug: string;
     contentHtml: string;
     metaDescription: string;
+    metaTitle?: string;
     featuredImageUrl?: string;
     featuredImageAlt?: string;
     faqItems?: { question: string; answer: string }[];
@@ -52,6 +54,7 @@ export async function publishToNuxtBlog(
     excerpt: { rendered: post.metaDescription },
     slug: post.slug,
     date: new Date().toISOString(),
+    metaTitle: post.metaTitle,
     faqItems: post.faqItems,
   };
 
