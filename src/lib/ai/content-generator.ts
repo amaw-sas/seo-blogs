@@ -223,9 +223,14 @@ Para el HTML:
 
     const faqHeadingMatch = html.match(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>/i);
     if (faqHeadingMatch) {
-      // Insert FAQ section right after the FAQ heading, replacing plain-text Q&A
-      // that follows up to the next H2 or </article>
-      const headingEnd = html.indexOf(faqHeadingMatch[0]) + faqHeadingMatch[0].length;
+      // Normalize heading to Spanish (replace "FAQ" with "Preguntas Frecuentes")
+      if (/\bfaq\b/i.test(faqHeadingMatch[0]) && !/preguntas/i.test(faqHeadingMatch[0])) {
+        const normalizedHeading = '<h2 id="faq">Preguntas Frecuentes</h2>';
+        html = html.replace(faqHeadingMatch[0], normalizedHeading);
+      }
+      // Re-find after potential replacement
+      const currentHeading = html.match(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>/i)!;
+      const headingEnd = html.indexOf(currentHeading[0]) + currentHeading[0].length;
       const afterHeading = html.slice(headingEnd);
       const nextH2OrEnd = afterHeading.search(/<h2|<\/article>/i);
       const insertPoint = nextH2OrEnd === -1 ? headingEnd : headingEnd + nextH2OrEnd;
