@@ -244,4 +244,43 @@ describe("generateContent", () => {
     expect(prompt).toContain("CERO texto en ingles");
     expect(prompt).toContain("metaDescription");
   });
+
+  it("injects Conclusion H2 when content lacks one", async () => {
+    const noConclusion = {
+      html: "<article><h1>Title</h1><p>Intro paragraph with enough words to be substantial for the test to work properly here.</p></article>",
+      markdown: "# Title\nIntro paragraph",
+      faqItems: [],
+    };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(noConclusion));
+
+    const result = await generateContent(validOutline, "kw", siteConfig);
+    expect(result.html).toContain('<h2 id="conclusion">Conclusión</h2>');
+  });
+
+  it("does not inject Conclusion when one already exists", async () => {
+    const withConclusion = {
+      html: '<article><h1>Title</h1><h2 id="conclusion">Conclusión</h2><p>Final thoughts here.</p></article>',
+      markdown: "# Title\n## Conclusión\nFinal thoughts",
+      faqItems: [],
+    };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(withConclusion));
+
+    const result = await generateContent(validOutline, "kw", siteConfig);
+    const matches = result.html.match(/Conclusión/g) ?? [];
+    expect(matches.length).toBe(1);
+  });
+
+  it("injects FAQ with bold questions when faqItems exist but no details tags", async () => {
+    const withFaq = {
+      html: '<article><h1>T</h1><h2>Preguntas frecuentes</h2><p>Some FAQ text</p></article>',
+      markdown: "# T",
+      faqItems: [{ question: "¿Qué es?", answer: "Es algo." }],
+    };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(withFaq));
+
+    const result = await generateContent(validOutline, "kw", siteConfig);
+    expect(result.html).toContain("<strong>¿Qué es?</strong>");
+    expect(result.html).toContain("<details>");
+    expect(result.html).toContain("<summary>");
+  });
 });

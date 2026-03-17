@@ -231,6 +231,26 @@ Para el HTML:
     }
   }
 
+  // Ensure a Conclusion section exists with its own H2
+  const conclusionPattern = /<h2[^>]*>[^<]*(conclusi[oó]n|para finalizar|en resumen)[^<]*<\/h2>/i;
+  if (!conclusionPattern.test(html) && html.includes("</article>")) {
+    // Extract the last paragraph as conclusion text (before </article>)
+    const lastParagraph = html.match(/<p>[^<]{50,}<\/p>\s*<\/article>/i);
+    if (lastParagraph) {
+      // Wrap existing last paragraph under a Conclusion H2
+      html = html.replace(
+        lastParagraph[0],
+        `<h2 id="conclusion">Conclusión</h2>\n${lastParagraph[0]}`,
+      );
+    } else {
+      // No suitable paragraph — add empty conclusion header
+      html = html.replace(
+        "</article>",
+        `<h2 id="conclusion">Conclusión</h2>\n<p>${outline.conclusion || "Planifica tu próximo viaje con anticipación para aprovechar al máximo cada destino."}</p>\n</article>`,
+      );
+    }
+  }
+
   return {
     html,
     markdown: content.markdown,
