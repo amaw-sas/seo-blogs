@@ -91,10 +91,10 @@ function buildImagePrompt(
   isHero: boolean,
 ): string {
   if (isHero) {
-    return `Wide-angle photograph, 35mm perspective, f/2.8 aperture. Scene: ${context}. Colombian setting, warm tropical sunlight, vivid natural colors, travel photography style. 16:9 composition. Only the landscape and environment, no people, no devices, no screens.`;
+    return `A wide landscape photograph showing: ${context}. Location: Colombia. Style: warm sunlight, vivid natural colors, scenic vista, travel magazine cover. Composition: 16:9 panoramic, eye-level view of the scene. The image shows only the place and scenery, with nobody in the frame.`;
   }
 
-  return `Close-up detail photograph, 85mm perspective, shallow depth of field. Subject: ${context}. Colombian setting, natural light, warm tones, editorial travel style. 16:9 format. Only the subject, no people, no devices, no screens.`;
+  return `A detailed photograph showing: ${context}. Location: Colombia. Style: natural light, warm tones, shallow focus on the main subject, editorial quality. Composition: 16:9, intimate close view of the subject. The image shows only the object or place, with nobody in the frame.`;
 }
 
 /**

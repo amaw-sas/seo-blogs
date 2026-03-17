@@ -151,7 +151,7 @@ Keyword principal: "${keyword}"
 Requisitos OBLIGATORIOS:
 1. Idioma: Espanol (Latinoamerica) — CERO texto en ingles, todo el contenido debe ser en espanol
 2. Longitud MINIMA: ${siteConfig.minWords} palabras (MAXIMO ${siteConfig.maxWords}). Esto NO es opcional — si el articulo tiene menos de ${siteConfig.minWords} palabras sera RECHAZADO. Desarrolla cada seccion con profundidad suficiente: ejemplos concretos, datos, comparaciones.
-3. La keyword "${keyword}" DEBE aparecer en las primeras 100 palabras
+3. La keyword "${keyword}" DEBE aparecer en las primeras 100 palabras Y repetirse naturalmente 3-5 veces en total a lo largo del articulo (en introduccion, al menos 1 H2, cuerpo, y conclusion)
 4. Cada seccion H2 debe abrir con una respuesta directa y concisa (2-3 oraciones) antes de profundizar — esto es critico para que los LLMs extraigan la respuesta
 5. Seccion FAQ con ${outline.faqQuestions.length} preguntas y respuestas detalladas antes de la conclusion
 6. Incluir al menos 2 datos especificos por articulo (precios reales, porcentajes, nombres de empresas)
