@@ -74,7 +74,7 @@ Requisitos:
 - Rango de palabras: ${siteConfig.minWords}-${siteConfig.maxWords}
 - H1: titulo atractivo que incluya la keyword, MAXIMO 60 caracteres
 - metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), debe incluir la keyword
-- 4-6 secciones H2 con estructura ASIMETRICA: algunas con 1 H3, otras con 3-4, y al menos una SIN H3 (solo parrafos). NO repetir el mismo patron en todas las secciones.
+- 3-5 secciones H2 (NO mas de 5). Cada H2 debe tener 0-2 H3 como maximo. Al menos 2 secciones H2 SIN ningun H3 (solo parrafos). Preferir profundidad (2-3 parrafos por punto) sobre amplitud (muchos H3 con 1 parrafo).
 - Cada H2 debe poder responder directamente una pregunta (formato LLM-friendly)
 - Seccion de FAQ con 3-5 preguntas antes de la conclusion
 - Seccion de conclusion al final
@@ -173,6 +173,7 @@ PROHIBIDO:
 OBLIGATORIO:
 - La introduccion debe responder la pregunta del titulo en la primera oracion
 - La conclusion debe dar un paso accionable ESPECIFICO: mencionar nombre de empresa, precio, URL o accion concreta (NO "contrate ahora", "viaje con tranquilidad" ni frases genericas)
+- Cada seccion H3 (si existe) debe tener MINIMO 2 parrafos de desarrollo. Si un H3 solo tiene 1 parrafo, elimina el H3 y fusiona con la seccion H2.
 - Variar la estructura entre secciones (no todas con el mismo patron)
 
 Estructura de la respuesta — responde SOLO con JSON valido (sin markdown code fences):
@@ -211,12 +212,12 @@ Para el HTML:
     .split(/\s+/)
     .filter(Boolean).length;
 
-  // Ensure FAQ uses <details>/<summary> structure
+  // Ensure FAQ has proper structure — use <details>/<summary> with bold questions
   let html = content.html;
   const faqItems = content.faqItems ?? [];
   if (faqItems.length > 0 && !/<details/i.test(html)) {
     const faqHtml = faqItems
-      .map((item) => `<details><summary>${item.question}</summary><p>${item.answer}</p></details>`)
+      .map((item) => `<details><summary><strong>${item.question}</strong></summary><p>${item.answer}</p></details>`)
       .join("\n");
     const faqSection = `<section class="faq">\n${faqHtml}\n</section>`;
 
