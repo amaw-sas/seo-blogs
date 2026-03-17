@@ -90,11 +90,13 @@ function buildImagePrompt(
   keyword: string,
   isHero: boolean,
 ): string {
+  const noOverlays = "Absolutely nothing written, printed, or displayed in the image. No signs, banners, screens, posters, people, hands, or cameras.";
+
   if (isHero) {
-    return `A wide landscape photograph of a real place in Colombia related to: ${context}. Warm sunlight, vivid natural colors, scenic vista, travel magazine style. 16:9 panoramic, eye-level. Photograph of real landscape or cityscape only — absolutely nothing written, printed, or displayed anywhere in the image. No signs, no banners, no screens, no posters. No people, no hands, no cameras.`;
+    return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape. Warm natural light, vivid colors, travel magazine quality. 16:9 panoramic composition. ${noOverlays}`;
   }
 
-  return `A detailed photograph of a real object or place in Colombia related to: ${context}. Natural light, warm tones, shallow focus, editorial quality. 16:9 close view. Photograph of real object or scene only — absolutely nothing written, printed, or displayed anywhere in the image. No signs, no banners, no screens, no posters. No people, no hands, no cameras.`;
+  return `A detailed photograph that illustrates: "${context}". The image should show a specific scene, object, or environment directly related to this topic. Natural light, warm tones, shallow focus, editorial quality. 16:9 close composition. ${noOverlays}`;
 }
 
 /**

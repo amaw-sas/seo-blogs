@@ -151,7 +151,7 @@ Keyword principal: "${keyword}"
 Requisitos OBLIGATORIOS:
 1. Idioma: Espanol (Latinoamerica) — CERO texto en ingles, todo el contenido debe ser en espanol
 2. Longitud MINIMA: ${siteConfig.minWords} palabras (MAXIMO ${siteConfig.maxWords}). Esto NO es opcional — si el articulo tiene menos de ${siteConfig.minWords} palabras sera RECHAZADO. Desarrolla cada seccion con profundidad suficiente: ejemplos concretos, datos, comparaciones.
-3. La keyword "${keyword}" DEBE aparecer en las primeras 100 palabras Y repetirse naturalmente 2-4 veces en total (NO en oraciones consecutivas, NO forzar la keyword donde no fluye natural)
+3. La keyword "${keyword}" DEBE aparecer MINIMO 3 veces en el articulo: una en las primeras 100 palabras, una en el cuerpo central, y una en la conclusion o parrafo final. Idealmente 4 veces. NO en oraciones consecutivas, fluir natural.
 4. Cada seccion H2 debe abrir con una respuesta directa y concisa (2-3 oraciones) antes de profundizar — esto es critico para que los LLMs extraigan la respuesta
 4b. Cada parrafo debe tener MINIMO 50 palabras. Desarrollar ideas con ejemplos concretos, comparaciones o datos — NO definiciones de 1-2 oraciones. Si un parrafo tiene menos de 3 oraciones, es insuficiente.
 5. Seccion FAQ con ${outline.faqQuestions.length} preguntas y respuestas detalladas antes de la conclusion
@@ -221,13 +221,21 @@ Para el HTML:
       .join("\n");
     const faqSection = `<section class="faq">\n${faqHtml}\n</section>`;
 
-    // Replace existing FAQ heading + content, or append before closing </article>
-    const faqPattern = /<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>[\s\S]*?(?=<h2|<\/article>)/i;
-    if (faqPattern.test(html)) {
-      const faqHeading = html.match(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>/i)?.[0] ?? "";
-      html = html.replace(faqPattern, `${faqHeading}\n${faqSection}\n`);
-    } else if (html.includes("</article>")) {
-      html = html.replace("</article>", `${faqSection}\n</article>`);
+    const faqHeadingMatch = html.match(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>/i);
+    if (faqHeadingMatch) {
+      // Insert FAQ section right after the FAQ heading, replacing plain-text Q&A
+      // that follows up to the next H2 or </article>
+      const headingEnd = html.indexOf(faqHeadingMatch[0]) + faqHeadingMatch[0].length;
+      const afterHeading = html.slice(headingEnd);
+      const nextH2OrEnd = afterHeading.search(/<h2|<\/article>/i);
+      const insertPoint = nextH2OrEnd === -1 ? headingEnd : headingEnd + nextH2OrEnd;
+      html = html.slice(0, headingEnd) + `\n${faqSection}\n` + html.slice(insertPoint);
+    } else {
+      // No FAQ heading — inject full FAQ with heading before </article>
+      const faqWithHeading = `<h2 id="faq">Preguntas Frecuentes</h2>\n${faqSection}`;
+      if (html.includes("</article>")) {
+        html = html.replace("</article>", `${faqWithHeading}\n</article>`);
+      }
     }
   }
 
