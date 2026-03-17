@@ -74,7 +74,7 @@ Requisitos:
 - Rango de palabras: ${siteConfig.minWords}-${siteConfig.maxWords}
 - H1: titulo atractivo que incluya la keyword, MAXIMO 60 caracteres
 - metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), debe incluir la keyword
-- 4-6 secciones H2, cada una con 1-3 H3 de apoyo
+- 4-6 secciones H2 con estructura ASIMETRICA: algunas con 1 H3, otras con 3-4, y al menos una SIN H3 (solo parrafos). NO repetir el mismo patron en todas las secciones.
 - Cada H2 debe poder responder directamente una pregunta (formato LLM-friendly)
 - Seccion de FAQ con 3-5 preguntas antes de la conclusion
 - Seccion de conclusion al final
@@ -151,8 +151,9 @@ Keyword principal: "${keyword}"
 Requisitos OBLIGATORIOS:
 1. Idioma: Espanol (Latinoamerica) — CERO texto en ingles, todo el contenido debe ser en espanol
 2. Longitud MINIMA: ${siteConfig.minWords} palabras (MAXIMO ${siteConfig.maxWords}). Esto NO es opcional — si el articulo tiene menos de ${siteConfig.minWords} palabras sera RECHAZADO. Desarrolla cada seccion con profundidad suficiente: ejemplos concretos, datos, comparaciones.
-3. La keyword "${keyword}" DEBE aparecer en las primeras 100 palabras Y repetirse naturalmente 3-5 veces en total a lo largo del articulo (en introduccion, al menos 1 H2, cuerpo, y conclusion)
+3. La keyword "${keyword}" DEBE aparecer en las primeras 100 palabras Y repetirse naturalmente 2-4 veces en total (NO en oraciones consecutivas, NO forzar la keyword donde no fluye natural)
 4. Cada seccion H2 debe abrir con una respuesta directa y concisa (2-3 oraciones) antes de profundizar — esto es critico para que los LLMs extraigan la respuesta
+4b. Cada parrafo debe tener MINIMO 50 palabras. Desarrollar ideas con ejemplos concretos, comparaciones o datos — NO definiciones de 1-2 oraciones. Si un parrafo tiene menos de 3 oraciones, es insuficiente.
 5. Seccion FAQ con ${outline.faqQuestions.length} preguntas y respuestas detalladas antes de la conclusion
 6. Incluir al menos 2 datos especificos por articulo (precios reales, porcentajes, nombres de empresas)
 7. Tono: profesional pero accesible, sin jerga innecesaria
@@ -164,12 +165,14 @@ PROHIBIDO:
 - Conclusion tipo resumen ("En conclusion, X es importante para Y")
 - Frases de relleno ("cabe mencionar", "es importante destacar", "sin duda alguna", "vale la pena")
 - Listas simetricas de 3-5 items con la misma estructura gramatical
+- Secciones con exactamente el mismo numero de H3 — VARIAR la profundidad por seccion
+- Parrafos de 1-2 oraciones (MINIMO 3 oraciones por parrafo)
 - CUALQUIER texto en ingles
 - Lenguaje evasivo ("puede que", "en general", "a menudo") — ser especifico
 
 OBLIGATORIO:
 - La introduccion debe responder la pregunta del titulo en la primera oracion
-- La conclusion debe dar un paso accionable concreto, no un resumen
+- La conclusion debe dar un paso accionable ESPECIFICO: mencionar nombre de empresa, precio, URL o accion concreta (NO "contrate ahora", "viaje con tranquilidad" ni frases genericas)
 - Variar la estructura entre secciones (no todas con el mismo patron)
 
 Estructura de la respuesta — responde SOLO con JSON valido (sin markdown code fences):

@@ -175,14 +175,17 @@ export async function runPipeline(
       //   (before FAQ or before last H2 = typically the middle sections)
       await logStep(siteId, null, "image_generation", "started");
       const nonFaqSections = outline.sections.filter(
-        (s) => !/faq|preguntas frecuentes/i.test(s.text),
+        (s) => !/faq|preguntas frecuentes|conclusion/i.test(s.text),
       );
+      // Hero: use first H2 (more concrete than H1 for DALL-E)
+      // Content: use a mid-article H2 for contextual relevance
+      const heroContext = nonFaqSections[0]?.text ?? outline.h1;
       const midSectionIdx = Math.floor(nonFaqSections.length * 0.6);
       const sectionContexts = nonFaqSections
         .slice(midSectionIdx, midSectionIdx + 2)
         .map((s) => s.text);
       const images = await generateAndUploadImages(
-        outline.h1,
+        heroContext,
         keyword.phrase,
         siteId,
         sectionContexts,
