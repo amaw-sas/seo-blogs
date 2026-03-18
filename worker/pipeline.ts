@@ -243,6 +243,7 @@ export async function runPipeline(
       // from post content. Schema is stored in DB and can be injected via theme/plugin.
       let enrichedHtml = insertImagesIntoHtml(content.html, images);
       enrichedHtml = insertLinksIntoHtml(enrichedHtml, links);
+      enrichedHtml = reduceKeywordDensity(enrichedHtml, keyword.phrase);
 
       // Step 7: Calculate SEO score
       const scorerInput: ScorerInput = {
@@ -348,6 +349,7 @@ export async function runPipeline(
     const links = buildLinks(site.posts, siteConfig, keyword.phrase);
     let enrichedHtml = insertImagesIntoHtml(content.html, images);
     enrichedHtml = insertLinksIntoHtml(enrichedHtml, links);
+    enrichedHtml = reduceKeywordDensity(enrichedHtml, keyword.phrase);
     const scorerInput: ScorerInput = {
       contentHtml: enrichedHtml, keyword: keyword.phrase, metaTitle, metaDescription, slug,
       images: images.map((img) => ({ altText: img.altText })),
@@ -1006,9 +1008,65 @@ function extractDomainName(url: string): string {
   }
 }
 
+/**
+ * Reduce keyword density when it exceeds maxDensityPct.
+ * Keeps first, last, and evenly spaced occurrences.
+ * Excess occurrences are shortened by dropping the location suffix.
+ */
+function reduceKeywordDensity(
+  html: string,
+  keyword: string,
+  maxDensityPct: number = 2.5,
+): string {
+  const textOnly = html.replace(/<[^>]+>/g, " ");
+  const wordCount = textOnly.split(/\s+/).filter(Boolean).length;
+  const kwWordCount = keyword.split(/\s+/).length;
+
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(escaped, "gi");
+  const matches = [...html.matchAll(regex)];
+
+  if (matches.length <= 3) return html;
+
+  const density = (matches.length * kwWordCount / wordCount) * 100;
+  if (density <= maxDensityPct) return html;
+
+  const targetOccurrences = Math.max(
+    3,
+    Math.floor((maxDensityPct / 100) * wordCount / kwWordCount),
+  );
+  const excess = matches.length - targetOccurrences;
+  if (excess <= 0) return html;
+
+  // Keep first and last. Pick middle ones to replace.
+  const middleMatches = matches.slice(1, -1);
+  const toReplace = middleMatches.slice(0, excess);
+
+  // Replace from end to start to preserve string indices
+  let result = html;
+  for (const match of [...toReplace].reverse()) {
+    const start = match.index!;
+    const end = start + match[0].length;
+    const variant = shortenKeyword(match[0]);
+    result = result.slice(0, start) + variant + result.slice(end);
+  }
+
+  return result;
+}
+
+/**
+ * Shorten a keyword by dropping the location suffix (e.g., "en colombia").
+ * Falls back to the original if no location is found.
+ */
+function shortenKeyword(kw: string): string {
+  const noLocation = kw.replace(/\s+en\s+\S+(\s+\S+)?$/i, "");
+  if (noLocation !== kw && noLocation.split(/\s+/).length >= 2) return noLocation;
+  return kw;
+}
+
 // ── Exports for testing ─────────────────────────────────────
 export { generateSlug, generateMetaDescription, extractTags, truncate,
-         insertImagesIntoHtml, insertLinksIntoHtml, buildLinks, SPANISH_STOPWORDS };
+         insertImagesIntoHtml, insertLinksIntoHtml, buildLinks, reduceKeywordDensity, SPANISH_STOPWORDS };
 
 async function logStep(
   siteId: string,

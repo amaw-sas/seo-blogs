@@ -7,6 +7,7 @@ import {
   insertImagesIntoHtml,
   insertLinksIntoHtml,
   buildLinks,
+  reduceKeywordDensity,
 } from "./pipeline";
 
 // ── generateSlug ────────────────────────────────────────────
@@ -277,5 +278,71 @@ describe("buildLinks", () => {
     const links = buildLinks([], siteConfig, "kw");
     const internal = links.filter((l) => l.type === "internal");
     expect(internal).toHaveLength(0);
+  });
+});
+
+// ── reduceKeywordDensity ───────────────────────────────────
+
+describe("reduceKeywordDensity", () => {
+  const kw = "seguro para carro alquilado en colombia";
+
+  function makeHtml(occurrences: number): string {
+    // ~200 words of filler + keyword repeated N times
+    const filler = "Lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. ";
+    const paragraphs = Array.from({ length: 5 }, () => `<p>${filler.repeat(3)}</p>`);
+    // Insert keyword occurrences spread across paragraphs
+    for (let i = 0; i < occurrences; i++) {
+      const pIdx = i % paragraphs.length;
+      paragraphs[pIdx] += `<p>Información sobre ${kw} relevante.</p>`;
+    }
+    return `<article>${paragraphs.join("\n")}</article>`;
+  }
+
+  it("returns html unchanged when density is below threshold", () => {
+    const html = makeHtml(2);
+    expect(reduceKeywordDensity(html, kw)).toBe(html);
+  });
+
+  it("returns html unchanged when 3 or fewer occurrences", () => {
+    const html = makeHtml(3);
+    expect(reduceKeywordDensity(html, kw)).toBe(html);
+  });
+
+  it("reduces occurrences when density exceeds 2.5%", () => {
+    const html = makeHtml(15);
+    const original = (html.match(new RegExp(kw, "gi")) || []).length;
+    const result = reduceKeywordDensity(html, kw);
+    const reduced = (result.match(new RegExp(kw, "gi")) || []).length;
+    expect(reduced).toBeLessThan(original);
+    expect(reduced).toBeGreaterThanOrEqual(3);
+  });
+
+  it("preserves first and last keyword occurrence", () => {
+    const html = makeHtml(15);
+    const result = reduceKeywordDensity(html, kw);
+    const firstIdx = result.toLowerCase().indexOf(kw.toLowerCase());
+    const lastIdx = result.toLowerCase().lastIndexOf(kw.toLowerCase());
+    expect(firstIdx).toBeGreaterThan(-1);
+    expect(lastIdx).toBeGreaterThan(firstIdx);
+  });
+
+  it("replaces with shortened variant (drops location)", () => {
+    const html = makeHtml(15);
+    const result = reduceKeywordDensity(html, kw);
+    // Should contain shortened form without "en colombia"
+    expect(result.toLowerCase()).toContain("seguro para carro alquilado");
+    // Should have fewer full matches than original
+    const fullMatches = (result.match(new RegExp(kw, "gi")) || []).length;
+    const shortMatches = (result.match(/seguro para carro alquilado/gi) || []).length;
+    expect(shortMatches).toBeGreaterThan(fullMatches);
+  });
+
+  it("is case insensitive", () => {
+    const html = `<p>El ${kw.toUpperCase()} es importante. Más sobre ${kw} aquí. También ${kw} allá.</p>` +
+      `<p>${"palabra ".repeat(50)}</p>`.repeat(3) +
+      Array.from({ length: 10 }, () => `<p>Sobre ${kw} más info.</p>`).join("");
+    const result = reduceKeywordDensity(html, kw);
+    const matches = (result.match(new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")) || []).length;
+    expect(matches).toBeLessThan(13);
   });
 });
