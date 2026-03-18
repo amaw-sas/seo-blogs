@@ -24,11 +24,13 @@ export function getOpenAIClient(): OpenAI {
 export async function chatCompletion(
   prompt: string,
   maxTokens: number,
+  temperature?: number,
 ): Promise<string> {
   const client = getOpenAIClient();
   const response = await client.chat.completions.create({
     model: MODEL,
     max_tokens: maxTokens,
+    temperature,
     messages: [{ role: "user", content: prompt }],
   });
   return response.choices[0]?.message?.content ?? "";
