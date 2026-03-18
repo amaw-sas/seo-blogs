@@ -859,13 +859,19 @@ function insertImagesIntoHtml(
       )
       .join("\n");
 
-    // Try to insert before FAQ heading (not inside FAQ area)
-    const faqHeadingPattern = /<h2[^>]*>[^<]*(?:Preguntas Frecuentes|FAQ)[^<]*<\/h2>/i;
-    const faqSectionPattern = /<section[^>]*class="[^"]*faq/i;
-    if (faqHeadingPattern.test(result)) {
-      result = result.replace(faqHeadingPattern, `${additionalImages}\n$&`);
-    } else if (faqSectionPattern.test(result)) {
-      result = result.replace(faqSectionPattern, `${additionalImages}\n$&`);
+    // Insert before FAQ area — whichever marker comes first (heading or section)
+    const faqH2Match = result.match(/<h2[^>]*>[^<]*(?:Preguntas Frecuentes|FAQ)[^<]*<\/h2>/i);
+    const faqSectionMatch = result.match(/<section[^>]*class="[^"]*faq/i);
+    let faqInsertPoint = -1;
+    if (faqH2Match) faqInsertPoint = result.indexOf(faqH2Match[0]);
+    if (faqSectionMatch) {
+      const sectionIdx = result.indexOf(faqSectionMatch[0]);
+      if (faqInsertPoint === -1 || sectionIdx < faqInsertPoint) {
+        faqInsertPoint = sectionIdx;
+      }
+    }
+    if (faqInsertPoint > -1) {
+      result = result.slice(0, faqInsertPoint) + additionalImages + "\n" + result.slice(faqInsertPoint);
     } else {
       // Insert before last H2 (conclusion)
       const lastH2 = result.lastIndexOf("<h2");
