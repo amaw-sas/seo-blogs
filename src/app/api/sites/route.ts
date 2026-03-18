@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const { domain, name, platform, apiUrl, apiUser, apiPassword, postsPerDay,
       minWords, maxWords, windowStart, windowEnd, conversionUrl,
-      authoritativeSources } = body;
+      authoritativeSources, knowledgeBase } = body;
 
     if (!domain || !name || !platform) {
       return NextResponse.json(
@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
         windowEnd: windowEnd ?? 12,
         conversionUrl: conversionUrl ?? null,
         authoritativeSources: authoritativeSources ?? [],
+        knowledgeBase: knowledgeBase ?? null,
       },
     });
 

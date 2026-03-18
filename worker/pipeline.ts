@@ -80,6 +80,7 @@ export async function runPipeline(
     conversionUrl: site.conversionUrl,
     authoritativeSources: site.authoritativeSources,
     domain: site.domain,
+    knowledgeBase: site.knowledgeBase,
   };
 
   // Step 1: Select keyword
@@ -192,6 +193,7 @@ export async function runPipeline(
         keyword.phrase,
         siteId,
         sectionContexts,
+        siteConfig.knowledgeBase,
       );
       await logStep(siteId, null, "image_generation", "success", {
         count: images.length,
@@ -327,7 +329,7 @@ export async function runPipeline(
       .filter((s) => !/faq|preguntas frecuentes/i.test(s.text))
       .slice(Math.floor(outline.sections.length * 0.6))
       .map((s) => s.text);
-    const images = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections);
+    const images = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections, siteConfig.knowledgeBase);
     const slug = generateSlug(keyword.phrase);
     const metaTitle = outline.metaTitle
       ? outline.metaTitle.slice(0, 60)
@@ -739,6 +741,7 @@ async function generateAndUploadImages(
   keyword: string,
   siteId: string,
   sectionContexts?: string[],
+  knowledgeBase?: string | null,
 ): Promise<UploadedImage[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -748,7 +751,7 @@ async function generateAndUploadImages(
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const rawImages = await generatePostImages(title, keyword, 2, sectionContexts);
+  const rawImages = await generatePostImages(title, keyword, 2, sectionContexts, knowledgeBase);
   const uploaded: UploadedImage[] = [];
 
   for (let i = 0; i < rawImages.length; i++) {
@@ -856,10 +859,13 @@ function insertImagesIntoHtml(
       )
       .join("\n");
 
-    // Try to insert before FAQ section
-    const faqPattern = /<section[^>]*class="[^"]*faq/i;
-    if (faqPattern.test(result)) {
-      result = result.replace(faqPattern, `${additionalImages}\n$&`);
+    // Try to insert before FAQ heading (not inside FAQ area)
+    const faqHeadingPattern = /<h2[^>]*>[^<]*(?:Preguntas Frecuentes|FAQ)[^<]*<\/h2>/i;
+    const faqSectionPattern = /<section[^>]*class="[^"]*faq/i;
+    if (faqHeadingPattern.test(result)) {
+      result = result.replace(faqHeadingPattern, `${additionalImages}\n$&`);
+    } else if (faqSectionPattern.test(result)) {
+      result = result.replace(faqSectionPattern, `${additionalImages}\n$&`);
     } else {
       // Insert before last H2 (conclusion)
       const lastH2 = result.lastIndexOf("<h2");

@@ -25,6 +25,7 @@ model Site {
   windowEnd            Int      @default(12) @map("window_end")
   conversionUrl        String?  @map("conversion_url")
   authoritativeSources String[] @map("authoritative_sources")
+  knowledgeBase        String?  @db.Text @map("knowledge_base")
   active               Boolean  @default(true)
   createdAt            DateTime @default(now()) @map("created_at")
   updatedAt            DateTime @updatedAt @map("updated_at")

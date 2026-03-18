@@ -13,6 +13,7 @@ export interface SiteConfig {
   conversionUrl: string | null;
   authoritativeSources: string[];
   domain: string;
+  knowledgeBase?: string | null;
 }
 
 export interface OutlineSection {
@@ -68,7 +69,7 @@ Usa esta informacion para crear un outline SUPERIOR a la competencia. Cubre los 
   const prompt = `Eres un experto en SEO y redaccion de contenido en espanol.
 
 Genera un outline detallado para un articulo de blog optimizado para la keyword: "${keyword}"
-${competitionContext}
+${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : ""}${competitionContext}
 Requisitos:
 - Idioma: Espanol
 - Rango de palabras: ${siteConfig.minWords}-${siteConfig.maxWords}
@@ -147,7 +148,7 @@ Escribe un articulo completo basado en este outline:
 ${outlineText}
 
 Keyword principal: "${keyword}"
-
+${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO (usa esta informacion para hacer el contenido mas especifico y relevante):\n${siteConfig.knowledgeBase}\n` : ""}
 Requisitos OBLIGATORIOS:
 1. Idioma: Espanol (Latinoamerica) — CERO texto en ingles, todo el contenido debe ser en espanol
 2. Longitud OBJETIVO: ${Math.round(siteConfig.minWords * 1.3)}-${siteConfig.maxWords} palabras. MINIMO ABSOLUTO: ${siteConfig.minWords} (cualquier articulo con menos sera RECHAZADO y regenerado). Cada seccion H2 debe tener MINIMO 3 parrafos (no contar FAQ ni Conclusion). Antes de responder, cuenta las palabras de tu borrador — si no llegas a ${Math.round(siteConfig.minWords * 1.3)}, expande las secciones mas cortas con ejemplos concretos, datos, costos reales y comparaciones.

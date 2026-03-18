@@ -29,13 +29,14 @@ export async function generatePostImages(
   keyword: string,
   count: number = 2,
   sectionContexts?: string[],
+  knowledgeBase?: string | null,
 ): Promise<GeneratedImage[]> {
   const images: GeneratedImage[] = [];
 
   for (let i = 0; i < count; i++) {
     const isHero = i === 0;
     const context = isHero ? title : (sectionContexts?.[i - 1] ?? title);
-    const prompt = buildImagePrompt(context, keyword, isHero);
+    const prompt = buildImagePrompt(context, keyword, isHero, knowledgeBase);
 
     const rawBuffer = await generateRawImage(prompt);
     const compressed = await compressToWebP(rawBuffer, 150);
@@ -112,14 +113,18 @@ function buildImagePrompt(
   context: string,
   keyword: string,
   isHero: boolean,
+  knowledgeBase?: string | null,
 ): string {
   const noOverlays = "Absolutely nothing written, printed, or displayed in the image. No signs, banners, screens, posters, people, hands, or cameras.";
+  const kbContext = knowledgeBase
+    ? ` Business context: ${knowledgeBase.slice(0, 300)}.`
+    : "";
 
   if (isHero) {
-    return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape. Warm natural light, vivid colors, travel magazine quality. 16:9 panoramic composition. ${noOverlays}`;
+    return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape.${kbContext} Warm natural light, vivid colors, travel magazine quality. 16:9 panoramic composition. ${noOverlays}`;
   }
 
-  return `A detailed photograph that illustrates: "${context}". The image should show a specific scene, object, or environment directly related to this topic. Natural light, warm tones, shallow focus, editorial quality. 16:9 close composition. ${noOverlays}`;
+  return `A detailed photograph that illustrates: "${context}". The image should show a specific scene, object, or environment directly related to this topic.${kbContext} Natural light, warm tones, shallow focus, editorial quality. 16:9 close composition. ${noOverlays}`;
 }
 
 /**
