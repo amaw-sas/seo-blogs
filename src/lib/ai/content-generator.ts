@@ -244,6 +244,24 @@ Para el HTML:
     }
   }
 
+  // Ensure FAQ section always has a "Preguntas Frecuentes" heading
+  // (handles case where LLM generated <details> but no H2)
+  if (/<section[^>]*class="[^"]*faq/i.test(html)) {
+    const faqH2 = html.match(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq)[^<]*<\/h2>/i);
+    if (faqH2) {
+      // Normalize "FAQ" → "Preguntas Frecuentes"
+      if (/\bfaq\b/i.test(faqH2[0]) && !/preguntas/i.test(faqH2[0])) {
+        html = html.replace(faqH2[0], '<h2 id="faq">Preguntas Frecuentes</h2>');
+      }
+    } else {
+      // No heading at all — inject one before <section class="faq">
+      html = html.replace(
+        /(<section[^>]*class="[^"]*faq[^"]*"[^>]*>)/i,
+        '<h2 id="faq">Preguntas Frecuentes</h2>\n$1',
+      );
+    }
+  }
+
   // Ensure a Conclusion section exists with its own H2
   const conclusionPattern = /<h2[^>]*>[^<]*(conclusi[oó]n|para finalizar|en resumen)[^<]*<\/h2>/i;
   if (!conclusionPattern.test(html) && html.includes("</article>")) {

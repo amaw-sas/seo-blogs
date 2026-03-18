@@ -270,6 +270,32 @@ describe("generateContent", () => {
     expect(matches.length).toBe(1);
   });
 
+  it("adds Preguntas Frecuentes heading when LLM generates details without H2", async () => {
+    const faqNoHeading = {
+      html: '<article><h1>T</h1><p>Content</p><section class="faq"><details><summary><strong>Q?</strong></summary><p>A.</p></details></section></article>',
+      markdown: "# T\nContent",
+      faqItems: [{ question: "Q?", answer: "A." }],
+    };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(faqNoHeading));
+
+    const result = await generateContent(validOutline, "kw", siteConfig);
+    expect(result.html).toContain('<h2 id="faq">Preguntas Frecuentes</h2>');
+    expect(result.html).toContain('<section class="faq">');
+  });
+
+  it("normalizes FAQ H2 to Preguntas Frecuentes when LLM writes FAQ heading", async () => {
+    const faqEnglishHeading = {
+      html: '<article><h1>T</h1><p>Content</p><h2 id="faq">FAQ</h2><section class="faq"><details><summary>Q?</summary><p>A.</p></details></section></article>',
+      markdown: "# T\nContent",
+      faqItems: [{ question: "Q?", answer: "A." }],
+    };
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify(faqEnglishHeading));
+
+    const result = await generateContent(validOutline, "kw", siteConfig);
+    expect(result.html).toContain("Preguntas Frecuentes");
+    expect(result.html).not.toMatch(/>FAQ<\/h2>/);
+  });
+
   it("injects FAQ with bold questions when faqItems exist but no details tags", async () => {
     const withFaq = {
       html: '<article><h1>T</h1><h2>Preguntas frecuentes</h2><p>Some FAQ text</p></article>',
