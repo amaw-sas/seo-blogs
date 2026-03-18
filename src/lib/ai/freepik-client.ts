@@ -35,7 +35,7 @@ export async function generateImageWithFreepik(
     body: JSON.stringify({
       prompt,
       negative_prompt: "text, watermark, logo, sign, banner, letters, words, blurry, low quality, cartoon, illustration, drawing, painting",
-      resolution: "2K",
+      resolution: "2k",
       aspect_ratio: aspectRatio,
       num_images: 1,
     }),

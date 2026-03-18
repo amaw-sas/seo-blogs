@@ -61,7 +61,7 @@ async function generateRawImage(prompt: string): Promise<Buffer> {
   // Try Freepik Mystic first
   if (process.env.FREEPIK_API_KEY) {
     try {
-      return await generateImageWithFreepik(prompt, "16:9");
+      return await generateImageWithFreepik(prompt, "widescreen_16_9");
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       console.warn(`[ImageGen] Freepik failed, falling back to DALL-E: ${msg}`);

@@ -46,7 +46,7 @@ describe("freepik-client", () => {
     expect((postOpts?.headers as Record<string, string>)["x-freepik-api-key"]).toBe("FPSXtest123");
     const postBody = JSON.parse(postOpts?.body as string);
     expect(postBody.prompt).toContain("car in Cartagena");
-    expect(postBody.resolution).toBe("2K");
+    expect(postBody.resolution).toBe("2k");
 
     // Verify poll call
     const [pollUrl] = mockFetch.mock.calls[1]!;
