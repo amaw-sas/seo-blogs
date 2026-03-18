@@ -1,9 +1,11 @@
 /**
- * Image generation using DALL-E (OpenAI) with WebP compression via sharp.
+ * Image generation using Freepik Mystic (primary) with DALL-E fallback.
+ * All images compressed to WebP via sharp.
  */
 
 import OpenAI from "openai";
 import sharp from "sharp";
+import { generateImageWithFreepik } from "./freepik-client";
 
 export interface GeneratedImage {
   buffer: Buffer;
@@ -28,7 +30,6 @@ export async function generatePostImages(
   count: number = 2,
   sectionContexts?: string[],
 ): Promise<GeneratedImage[]> {
-  const client = getClient();
   const images: GeneratedImage[] = [];
 
   for (let i = 0; i < count; i++) {
@@ -36,27 +37,10 @@ export async function generatePostImages(
     const context = isHero ? title : (sectionContexts?.[i - 1] ?? title);
     const prompt = buildImagePrompt(context, keyword, isHero);
 
-    const response = await client.images.generate({
-      model: "dall-e-3",
-      prompt,
-      n: 1,
-      size: "1792x1024",
-      response_format: "b64_json",
-      quality: "standard",
-    });
-
-    const b64Data = response.data?.[0]?.b64_json;
-    const revisedPrompt = response.data?.[0]?.revised_prompt ?? "";
-    if (!b64Data) {
-      throw new Error(`DALL-E returned no image data for image ${i + 1}`);
-    }
-
-    const rawBuffer = Buffer.from(b64Data, "base64");
+    const rawBuffer = await generateRawImage(prompt);
     const compressed = await compressToWebP(rawBuffer, 150);
-
     const metadata = await sharp(compressed).metadata();
-
-    const altText = generateAltText(revisedPrompt, keyword, isHero, i, context);
+    const altText = generateAltText("", keyword, isHero, i, context);
 
     images.push({
       buffer: compressed,
@@ -68,6 +52,38 @@ export async function generatePostImages(
   }
 
   return images;
+}
+
+/**
+ * Generate a raw image buffer. Tries Freepik Mystic first, falls back to DALL-E.
+ */
+async function generateRawImage(prompt: string): Promise<Buffer> {
+  // Try Freepik Mystic first
+  if (process.env.FREEPIK_API_KEY) {
+    try {
+      return await generateImageWithFreepik(prompt, "16:9");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      console.warn(`[ImageGen] Freepik failed, falling back to DALL-E: ${msg}`);
+    }
+  }
+
+  // Fallback: DALL-E 3
+  const client = getClient();
+  const response = await client.images.generate({
+    model: "dall-e-3",
+    prompt,
+    n: 1,
+    size: "1792x1024",
+    response_format: "b64_json",
+    quality: "standard",
+  });
+
+  const b64Data = response.data?.[0]?.b64_json;
+  if (!b64Data) {
+    throw new Error("DALL-E returned no image data");
+  }
+  return Buffer.from(b64Data, "base64");
 }
 
 // ── Helpers ──────────────────────────────────────────────────
