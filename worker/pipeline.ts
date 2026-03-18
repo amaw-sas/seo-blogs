@@ -125,6 +125,7 @@ export async function runPipeline(
   } | null = null;
 
   const MAX_ATTEMPTS = 3;
+  const RETRY_DELAY_MS = process.env.NODE_ENV === "test" ? 0 : 3000;
   let attempts = 0;
   // Track best short content as fallback when all attempts fail word count
   let bestShortContent: { outline: PostOutline; content: GeneratedContent } | null = null;
@@ -160,6 +161,8 @@ export async function runPipeline(
             reason: `Word count ${content.wordCount} < ${siteConfig.minWords}`,
             attempt: attempts + 1,
           });
+          // Delay between retries to avoid rate limiting
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
         }
         continue;
       }
@@ -297,10 +300,17 @@ export async function runPipeline(
       });
 
       if (attempts >= MAX_ATTEMPTS) {
+        // If we have usable short content, break to fallback instead of dying
+        if (bestShortContent) {
+          break;
+        }
         throw new Error(
           `Pipeline failed after ${MAX_ATTEMPTS} attempts: ${message}`,
         );
       }
+
+      // Delay between retries to avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
     }
   }
 
