@@ -122,7 +122,7 @@ async function seedSites() {
       name: "Alquila Tu Carro",
       platform: "nuxt-blog",
       postsPerDay: 1,
-      minWords: 1500,
+      minWords: 1200,
       maxWords: 2500,
       windowStart: 8,
       windowEnd: 14,
