@@ -21,6 +21,7 @@ interface NuxtBlogSyncPayload {
   slug: string;
   date: string;
   metaTitle?: string;
+  tags?: string[];
   _embedded?: {
     "wp:featuredmedia"?: [{ source_url: string; alt_text: string }];
   };
@@ -45,6 +46,7 @@ export async function publishToNuxtBlog(
     featuredImageUrl?: string;
     featuredImageAlt?: string;
     faqItems?: { question: string; answer: string }[];
+    tags?: string[];
   },
   site: NuxtBlogSiteConfig,
 ): Promise<string> {
@@ -55,6 +57,7 @@ export async function publishToNuxtBlog(
     slug: post.slug,
     date: new Date().toISOString(),
     metaTitle: post.metaTitle,
+    tags: post.tags,
     faqItems: post.faqItems,
   };
 

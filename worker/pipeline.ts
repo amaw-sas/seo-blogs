@@ -632,6 +632,7 @@ export async function runPipeline(
           featuredImageUrl: featuredFirebaseUrl,
           featuredImageAlt: bestResult.images[0]?.altText,
           faqItems: bestResult.faqItems.length > 0 ? bestResult.faqItems : undefined,
+          tags: bestResult.tags.length > 0 ? bestResult.tags : undefined,
         },
         nuxtConfig,
       );

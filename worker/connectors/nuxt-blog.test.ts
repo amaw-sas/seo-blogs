@@ -98,6 +98,18 @@ describe("nuxt-blog connector", () => {
       expect(body.metaTitle).toBe("Carros para Alquilar | Blog");
     });
 
+    it("includes tags in payload when provided", async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+      await publishToNuxtBlog(
+        { ...mockPost, tags: ["medellín", "alquiler", "automático"] },
+        mockSite,
+      );
+
+      const body = JSON.parse(vi.mocked(globalThis.fetch).mock.calls[0]![1]?.body as string);
+      expect(body.tags).toEqual(["medellín", "alquiler", "automático"]);
+    });
+
     it("omits metaTitle from payload when not provided", async () => {
       vi.mocked(globalThis.fetch).mockResolvedValueOnce(jsonResponse({ ok: true }));
 
