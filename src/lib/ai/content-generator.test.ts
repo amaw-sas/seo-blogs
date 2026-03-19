@@ -98,7 +98,7 @@ describe("generateOutline", () => {
 
     const prompt = mockChatCompletion.mock.calls[0]![0];
     expect(prompt).toContain("zapatos para correr");
-    expect(prompt).toContain("1500-3000");
+    expect(prompt).toContain("keyword al inicio");
   });
 
   it("includes competition context when provided", async () => {
@@ -241,7 +241,7 @@ describe("generateContent", () => {
     const prompt = mockChatCompletion.mock.calls[0]![0];
     expect(prompt).toContain("PROHIBIDO");
     expect(prompt).toContain("En el mundo actual");
-    expect(prompt).toContain("CERO texto en ingles");
+    expect(prompt).toContain("CUALQUIER texto en ingles");
     expect(prompt).toContain("metaDescription");
   });
 

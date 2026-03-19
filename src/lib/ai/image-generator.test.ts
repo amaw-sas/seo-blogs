@@ -12,9 +12,9 @@ describe("generateAltText", () => {
     expect(result).not.toContain("Fotografia");
   });
 
-  it("uses context for non-hero image alt text", () => {
+  it("prepends keyword when context lacks it", () => {
     const result = generateAltText("", keyword, false, 1, contentContext);
-    expect(result).toBe(contentContext);
+    expect(result).toBe(`${keyword} — ${contentContext}`);
     expect(result).not.toContain("Detalle visual");
   });
 
@@ -47,7 +47,8 @@ describe("generateAltText", () => {
     expect(result).not.toContain("close-up");
     expect(result).not.toContain("documentary");
     expect(result).not.toContain("simulated");
-    expect(result).toBe(contentContext);
+    expect(result).toContain("alquilar carro en cartagena");
+    expect(result).toContain(contentContext);
   });
 
   it("falls back and still ignores DALL-E English content when context is empty", () => {
@@ -77,6 +78,6 @@ describe("generateAltText", () => {
     const altContent = generateAltText("", keyword, false, 1, contentContext);
     expect(altHero).not.toBe(altContent);
     expect(altHero).toBe(heroContext);
-    expect(altContent).toBe(contentContext);
+    expect(altContent).toBe(`${keyword} — ${contentContext}`);
   });
 });

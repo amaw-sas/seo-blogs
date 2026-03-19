@@ -70,25 +70,41 @@ Usa esta informacion para crear un outline SUPERIOR a la competencia. Cubre los 
 
 Genera un outline detallado para un articulo de blog optimizado para la keyword: "${keyword}"
 ${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : ""}${competitionContext}
-Requisitos:
-- Idioma: Espanol
-- Rango de palabras: ${siteConfig.minWords}-${siteConfig.maxWords}
-- H1: titulo atractivo que incluya la keyword, MAXIMO 60 caracteres
-- metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), debe incluir la keyword
-- 3-5 secciones H2 (NO mas de 5). Cada H2 debe tener 0-2 H3 como maximo. Al menos 2 secciones H2 SIN ningun H3 (solo parrafos). Preferir profundidad (2-3 parrafos por punto) sobre amplitud (muchos H3 con 1 parrafo).
-- Cada H2 debe poder responder directamente una pregunta (formato LLM-friendly)
+
+REGLAS DE SEO APRENDIDAS (basadas en analisis de posts con alta puntuacion SEO):
+
+TITULO Y SLUG:
+- H1: keyword AL INICIO del titulo, seguida de ":" y un modificador descriptivo. MAXIMO 60 caracteres.
+  BUENOS: "Renta autos Cartagena: guia para recorrer la ciudad", "Alquiler carro Cali barato: tips reales para ahorrar"
+  MALOS: "Guia Completa sobre los Documentos Necesarios para Rentar un Carro en Bogota" (largo, keyword enterrada)
+- metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), keyword al inicio
+- El slug se generara automaticamente del keyword (3-5 palabras, sin stopwords). NO incluir "guia-completa", "descubre", "todo-lo-que-debes-saber" en el titulo.
+
+ESTRUCTURA DE HEADINGS:
+- 4-7 secciones H2. NO todas deben ser preguntas — variar entre:
+  * Afirmaciones directas: "Lugares imperdibles con renta de autos"
+  * Listas con numero: "7 consejos clave para ahorrar"
+  * Guias practicas: "Consejos para conducir en la ciudad"
+  * Solo 1-2 H2s como pregunta: "¿Cuanto cuesta alquilar?"
+- Cada H2 debe tener 0-3 H3 como maximo. Variar: algunas H2 sin H3, otras con 2-3.
+- Los H2 deben incluir la keyword o sinonimos de forma natural (critico para Yoast/RankMath)
 - Seccion de FAQ con 3-5 preguntas antes de la conclusion
 - Seccion de conclusion al final
-- La keyword debe aparecer naturalmente en los encabezados
+- PROHIBIDO: H2s que repitan la misma estructura gramatical ("¿Como X?", "¿Que Y?", "¿Cuales Z?" consecutivos)
+
+RELEVANCIA TEMATICA:
+- El contenido DEBE estar directamente relacionado con el nicho del sitio
+- PROHIBIDO: posts off-topic (festividades religiosas, eventos culturales sin conexion directa al servicio)
+- Cada seccion debe aportar valor practico: lugares, precios, requisitos, comparaciones, rutas
 
 Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
 {
-  "h1": "string (max 60 chars)",
-  "metaTitle": "string (max 60 chars, optimizado para CTR)",
+  "h1": "string (max 60 chars, keyword al inicio)",
+  "metaTitle": "string (max 45 chars, keyword al inicio, optimizado para CTR)",
   "sections": [
     {
       "tag": "h2",
-      "text": "string",
+      "text": "string (incluir keyword o sinonimo natural)",
       "children": [
         { "tag": "h3", "text": "string" }
       ]
@@ -141,7 +157,7 @@ export async function generateContent(
 ): Promise<GeneratedContent> {
   const outlineText = formatOutlineForPrompt(outline);
 
-  const prompt = `Eres un redactor experto en SEO para contenido en espanol.
+  const prompt = `Eres un redactor experto en SEO para contenido en espanol. Escribes como un local que conoce el tema de primera mano, no como una enciclopedia.
 
 Escribe un articulo completo basado en este outline:
 
@@ -149,39 +165,55 @@ ${outlineText}
 
 Keyword principal: "${keyword}"
 ${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO (usa esta informacion para hacer el contenido mas especifico y relevante):\n${siteConfig.knowledgeBase}\n` : ""}
-Requisitos OBLIGATORIOS:
-1. Idioma: Espanol (Latinoamerica) — CERO texto en ingles, todo el contenido debe ser en espanol
-2. Longitud OBJETIVO: ${Math.round(siteConfig.minWords * 1.3)}-${siteConfig.maxWords} palabras. MINIMO ABSOLUTO: ${siteConfig.minWords} (cualquier articulo con menos sera RECHAZADO y regenerado). Cada seccion H2 debe tener MINIMO 3 parrafos (no contar FAQ ni Conclusion). Antes de responder, cuenta las palabras de tu borrador — si no llegas a ${Math.round(siteConfig.minWords * 1.3)}, expande las secciones mas cortas con ejemplos concretos, datos, costos reales y comparaciones.
-3. La keyword "${keyword}" DEBE aparecer MINIMO 3 veces en el articulo: una en las primeras 100 palabras, una en el cuerpo central, y una en la conclusion o parrafo final. Idealmente 4 veces. NO en oraciones consecutivas, fluir natural.
-4. Cada seccion H2 debe abrir con una respuesta directa y concisa (2-3 oraciones) antes de profundizar — esto es critico para que los LLMs extraigan la respuesta
-4b. Cada parrafo debe tener MINIMO 50 palabras. Desarrollar ideas con ejemplos concretos, comparaciones o datos — NO definiciones de 1-2 oraciones. Si un parrafo tiene menos de 3 oraciones, es insuficiente.
-5. Seccion FAQ con ${outline.faqQuestions.length} preguntas y respuestas detalladas antes de la conclusion
-6. Incluir al menos 2 datos especificos por articulo (precios reales, porcentajes, nombres de empresas)
-7. Tono: profesional pero accesible, sin jerga innecesaria
-8. Densidad de keyword: mantener por debajo del 2.5%
-9. metaDescription: genera una meta description de 120-155 caracteres con CTA implicito que incluya la keyword — NO copies una oracion del body
+REGLAS SEO CRITICAS (aprendidas de posts con alta puntuacion en Yoast/RankMath):
 
-PROHIBIDO:
+KEYWORD PLACEMENT (el plugin SEO evalua cada uno de estos):
+1. INTRODUCCION: La keyword "${keyword}" DEBE aparecer textualmente en la PRIMERA ORACION del articulo. No parafraseada, no como sinonimo — la frase exacta.
+2. CUERPO: La keyword debe aparecer minimo 3-4 veces en total (intro, cuerpo, conclusion). Densidad entre 0.5%-2.5%.
+3. SUBTITULOS: Al menos 2 de los H2 deben contener la keyword o una variacion cercana.
+4. META DESCRIPTION: Debe incluir la keyword exacta. 120-155 caracteres con CTA implicito.
+
+LONGITUD Y PROFUNDIDAD:
+- Objetivo: ${Math.round(siteConfig.minWords * 1.3)}-${siteConfig.maxWords} palabras. MINIMO ABSOLUTO: ${siteConfig.minWords}.
+- Cada seccion H2: MINIMO 3 parrafos (excepto FAQ y Conclusion).
+- Cada parrafo: MINIMO 50 palabras. Desarrollar con ejemplos locales, precios reales, nombres de lugares, distancias.
+- Antes de responder, cuenta palabras — si no llegas a ${Math.round(siteConfig.minWords * 1.3)}, expande con datos concretos.
+
+ESTILO DE CONTENIDO (patron de posts exitosos):
+- Contenido PRACTICO y LOCAL: mencionar lugares reales, precios aproximados, distancias, nombres de empresas
+- Cada H2 abre con respuesta directa (2-3 oraciones) antes de profundizar — critico para featured snippets
+- Variar estructura entre secciones: parrafos narrativos, listas cortas, comparaciones, tips numerados
+- Tono: como un amigo local que te da consejos reales, no como un articulo de enciclopedia
+
+SECCION FAQ:
+- ${outline.faqQuestions.length} preguntas y respuestas detalladas
+- Usar <section class="faq"> con <details>/<summary> tags
+- Cada respuesta: 2-4 oraciones con datos especificos
+
+PROHIBIDO (patrones detectados como AI de baja calidad):
 - Introduccion generica ("En el mundo actual...", "Es fundamental destacar...", "En la actualidad...")
 - Conclusion tipo resumen ("En conclusion, X es importante para Y")
 - Frases de relleno ("cabe mencionar", "es importante destacar", "sin duda alguna", "vale la pena")
 - Listas simetricas de 3-5 items con la misma estructura gramatical
-- Secciones con exactamente el mismo numero de H3 — VARIAR la profundidad por seccion
-- Parrafos de 1-2 oraciones (MINIMO 3 oraciones por parrafo)
+- TODOS los H2 formulados como preguntas (variar: afirmaciones, listas, guias)
+- Parrafos de 1-2 oraciones
 - CUALQUIER texto en ingles
-- Lenguaje evasivo ("puede que", "en general", "a menudo") — ser especifico
+- Lenguaje evasivo ("puede que", "en general", "a menudo")
+- Repetir el titulo completo como alt text de imagenes
+- Anchor text generico para links ("conoce mas aqui", "haz clic aqui")
+- Contenido off-topic sin relacion directa al servicio/nicho del sitio
 
 OBLIGATORIO:
-- La introduccion debe responder la pregunta del titulo en la primera oracion
-- La conclusion debe dar un paso accionable ESPECIFICO: mencionar nombre de empresa, precio, URL o accion concreta (NO "contrate ahora", "viaje con tranquilidad" ni frases genericas)
-- Cada seccion H3 (si existe) debe tener MINIMO 2 parrafos de desarrollo. Si un H3 solo tiene 1 parrafo, elimina el H3 y fusiona con la seccion H2.
-- Variar la estructura entre secciones (no todas con el mismo patron)
+- La introduccion responde la pregunta del titulo en la primera oracion E incluye la keyword
+- La conclusion da un paso accionable ESPECIFICO: empresa, precio, URL o accion concreta
+- Al menos 2 datos especificos por articulo (precios, porcentajes, nombres de empresas locales)
+- Incluir al menos 1 dato no obvio o contraIntuitivo sobre el tema
 
 Estructura de la respuesta — responde SOLO con JSON valido (sin markdown code fences):
 {
   "html": "<article>...contenido HTML completo con tags semanticos (h1, h2, h3, p, ul, ol, strong, em)...</article>",
   "markdown": "# ...contenido en Markdown...",
-  "metaDescription": "string (120-155 chars, con CTA implicito y keyword)",
+  "metaDescription": "string (120-155 chars, DEBE incluir la keyword exacta '${keyword}', con CTA implicito)",
   "faqItems": [
     { "question": "string", "answer": "string" }
   ]

@@ -96,14 +96,24 @@ function generateAltText(
   _index: number,
   context: string,
 ): string {
-  // DALL-E revised_prompt is always in English — never suitable for Spanish alt text.
-  // Use section/post context (H2 title) for specific, descriptive alt text.
-  // Fall back to keyword-based text only when context is empty.
-  const trimmed = context.trim();
-  if (trimmed) {
-    const cap = 100;
-    return trimmed.length > cap ? trimmed.slice(0, cap).trimEnd() : trimmed;
+  // Alt text must include the keyword naturally for SEO plugin compliance.
+  // Good pattern: "renta autos cartagena ciudad amurallada" (keyword + descriptive context)
+  // Bad pattern: full title repeated as alt text (keyword stuffing)
+  const trimmedContext = context.trim();
+  const keywordLower = keyword.toLowerCase();
+
+  if (trimmedContext) {
+    // Check if context already contains the keyword
+    const contextLower = trimmedContext.toLowerCase();
+    if (contextLower.includes(keywordLower)) {
+      // Context already has keyword — use as-is, truncated
+      return trimmedContext.length > 100 ? trimmedContext.slice(0, 100).trimEnd() : trimmedContext;
+    }
+    // Prepend keyword naturally: "keyword — context description"
+    const combined = `${keyword} — ${trimmedContext}`;
+    return combined.length > 100 ? combined.slice(0, 100).trimEnd() : combined;
   }
+
   return isHero
     ? `Fotografia sobre ${keyword}`
     : `Detalle visual relacionado con ${keyword}`;
