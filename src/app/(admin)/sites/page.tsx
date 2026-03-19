@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -42,6 +43,7 @@ interface Site {
   windowStart: number;
   windowEnd: number;
   conversionUrl: string | null;
+  knowledgeBase: string | null;
   active: boolean;
   createdAt: string;
   _count: { keywords: number };
@@ -228,6 +230,7 @@ const defaultSiteForm = {
   windowStart: 7,
   windowEnd: 12,
   conversionUrl: "",
+  knowledgeBase: "",
   active: true,
 };
 
@@ -404,6 +407,20 @@ function SiteFormDialog({
               onChange={(e) => update("conversionUrl", e.target.value)}
               placeholder="https://ejemplo.com/contacto"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Base de conocimiento</Label>
+            <Textarea
+              value={form.knowledgeBase}
+              onChange={(e) => update("knowledgeBase", e.target.value)}
+              placeholder="Información del negocio: categorías de vehículos, sedes, tarifas, servicios, diferenciadores..."
+              rows={6}
+              className="resize-y"
+            />
+            <p className="text-xs text-muted-foreground">
+              Se inyecta en los prompts de generación de contenido e imágenes para hacer el contenido más específico.
+            </p>
           </div>
 
           <Button type="submit" className="w-full" disabled={saving}>
@@ -623,6 +640,7 @@ export default function SitesPage() {
             windowStart: editSite.windowStart,
             windowEnd: editSite.windowEnd,
             conversionUrl: editSite.conversionUrl ?? "",
+            knowledgeBase: editSite.knowledgeBase ?? "",
             active: editSite.active,
           }}
           onSave={handleEdit}
