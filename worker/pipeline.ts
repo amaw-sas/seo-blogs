@@ -559,6 +559,7 @@ export async function runPipeline(
           contentHtml: post.contentHtml,
           metaTitle: bestResult.metaTitle,
           metaDescription: bestResult.metaDescription,
+          keyword: keyword.phrase,
           status: "publish",
           featuredMediaId,
         },

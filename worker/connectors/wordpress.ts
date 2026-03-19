@@ -13,6 +13,7 @@ export interface WpPostData {
   contentHtml: string;
   metaTitle: string;
   metaDescription: string;
+  keyword?: string;
   status: "draft" | "publish" | "pending";
   categories?: number[];
   tags?: number[];
@@ -212,6 +213,7 @@ function buildWpBody(
     meta: {
       _yoast_wpseo_title: post.metaTitle,
       _yoast_wpseo_metadesc: post.metaDescription,
+      ...(post.keyword && { _yoast_wpseo_focuskw: post.keyword }),
     },
   };
 
