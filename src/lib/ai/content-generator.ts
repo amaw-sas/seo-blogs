@@ -321,19 +321,32 @@ Para el HTML:
     }
   }
 
-  // Add inline styles to tables for consistent rendering across themes
-  // Use word boundary (\b or >) to avoid matching <thead>/<tbody> with <th>/<td>
+  // Add inline styles to tables for consistent rendering across themes.
+  // Force display properties to override CSS frameworks that reset table elements to block.
+  // Use lookahead (?=[>\s]) to avoid matching <thead>/<tbody> with <th>/<td>.
   html = html.replace(
     /<table(?=[>\s])(?![^>]*style)/gi,
-    '<table style="width:100%;border-collapse:collapse;margin:1.5em 0"',
+    '<table style="display:table;width:100%;border-collapse:collapse;margin:1.5em 0"',
+  );
+  html = html.replace(
+    /<thead(?=[>\s])(?![^>]*style)/gi,
+    '<thead style="display:table-header-group"',
+  );
+  html = html.replace(
+    /<tbody(?=[>\s])(?![^>]*style)/gi,
+    '<tbody style="display:table-row-group"',
+  );
+  html = html.replace(
+    /<tr(?=[>\s])(?![^>]*style)/gi,
+    '<tr style="display:table-row"',
   );
   html = html.replace(
     /<th(?=[>\s])(?![^>]*style)/gi,
-    '<th style="border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;text-align:left;font-weight:600"',
+    '<th style="display:table-cell;border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;text-align:left;font-weight:600"',
   );
   html = html.replace(
     /<td(?=[>\s])(?![^>]*style)/gi,
-    '<td style="border:1px solid #ddd;padding:10px 14px"',
+    '<td style="display:table-cell;border:1px solid #ddd;padding:10px 14px"',
   );
 
   // Add inline styles to blockquotes for visual distinction
