@@ -87,7 +87,7 @@ ESTRUCTURA DE HEADINGS:
   * Guias practicas: "Consejos para conducir en la ciudad"
   * Solo 1-2 H2s como pregunta: "¿Cuanto cuesta alquilar?"
 - Cada H2 debe tener 0-3 H3 como maximo. Variar: algunas H2 sin H3, otras con 2-3.
-- Los H2 deben incluir la keyword o sinonimos de forma natural (critico para Yoast/RankMath)
+- CRITICO PARA YOAST: Al menos 1 H2 debe contener la keyword "${keyword}" TEXTUAL (se permiten articulos/preposiciones extra). Ejemplo si keyword es "alquiler camioneta 4x4 bogota": "Alquiler de camioneta 4x4 en Bogotá: mejores opciones". Yoast busca la frase exacta, no palabras sueltas.
 - Seccion de FAQ con 3-5 preguntas antes de la conclusion
 - Seccion de conclusion al final
 - PROHIBIDO: H2s que repitan la misma estructura gramatical ("¿Como X?", "¿Que Y?", "¿Cuales Z?" consecutivos)
@@ -170,12 +170,13 @@ REGLAS SEO CRITICAS (aprendidas de posts con alta puntuacion en Yoast/RankMath):
 KEYWORD PLACEMENT (el plugin SEO evalua cada uno de estos):
 1. INTRODUCCION: La keyword "${keyword}" DEBE aparecer textualmente en la PRIMERA ORACION del articulo. No parafraseada, no como sinonimo — la frase exacta.
 2. CUERPO: La keyword debe aparecer minimo 3-4 veces en total (intro, cuerpo, conclusion). Densidad entre 0.5%-2.5%.
-3. SUBTITULOS: Al menos 2 de los H2 o H3 DEBEN contener la keyword "${keyword}" textual o una variacion muy cercana (mismo orden de palabras, se permite agregar articulos). Yoast verifica esto estrictamente.
+3. SUBTITULOS: Al menos 1 H2 DEBE contener la keyword "${keyword}" TEXTUAL (se permiten articulos/preposiciones extra como "de", "en", "para"). Yoast busca la frase EXACTA en subtitulos, no palabras sueltas. Ejemplo: si keyword es "alquiler camioneta 4x4 bogota", un H2 valido es "Alquiler de camioneta 4x4 en Bogotá: mejores opciones".
 4. META DESCRIPTION: Debe incluir la keyword exacta. MAXIMO 155 caracteres (no 156+). CTA implicito.
 
 LONGITUD Y PROFUNDIDAD:
 - Objetivo: ${Math.round(siteConfig.minWords * 1.3)}-${siteConfig.maxWords} palabras. MINIMO ABSOLUTO: ${siteConfig.minWords}.
 - Cada seccion H2: MINIMO 3 parrafos (excepto FAQ y Conclusion).
+- Cada seccion H3: 1-3 parrafos de desarrollo. Si un H3 solo tendria 1 oracion, eliminalo y fusiona con el H2.
 - Cada parrafo: MINIMO 50 palabras. Desarrollar con ejemplos locales, precios reales, nombres de lugares, distancias.
 - Antes de responder, cuenta palabras — si no llegas a ${Math.round(siteConfig.minWords * 1.3)}, expande con datos concretos.
 
