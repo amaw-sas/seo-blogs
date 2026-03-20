@@ -187,7 +187,7 @@ ESTILO DE CONTENIDO (patron de posts exitosos):
 
 VARIEDAD DE FORMATO (obligatorio para evitar monotonia):
 - Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>.
-- Incluir al menos 1 frase destacada con <blockquote> — un dato clave, consejo memorable o estadistica impactante.
+- OBLIGATORIO: Incluir exactamente 1 <blockquote> con una frase destacada (dato clave, consejo memorable o estadistica). Ejemplo: <blockquote>Reservar con 2 semanas de anticipacion puede ahorrarte hasta un 40% en temporada alta.</blockquote>. Si no incluyes blockquote, el articulo sera RECHAZADO.
 - Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
 - Variar estructura entre secciones: parrafos narrativos, tablas, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
 
@@ -320,6 +320,26 @@ Para el HTML:
       );
     }
   }
+
+  // Add inline styles to tables for consistent rendering across themes
+  html = html.replace(
+    /<table(?![^>]*style)/gi,
+    '<table style="width:100%;border-collapse:collapse;margin:1.5em 0"',
+  );
+  html = html.replace(
+    /<th(?![^>]*style)/gi,
+    '<th style="border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;text-align:left;font-weight:600"',
+  );
+  html = html.replace(
+    /<td(?![^>]*style)/gi,
+    '<td style="border:1px solid #ddd;padding:10px 14px"',
+  );
+
+  // Add inline styles to blockquotes for visual distinction
+  html = html.replace(
+    /<blockquote(?![^>]*style)/gi,
+    '<blockquote style="border-left:4px solid #3b82f6;margin:1.5em 0;padding:1em 1.5em;background:#f0f7ff;font-style:italic"',
+  );
 
   return {
     html,
