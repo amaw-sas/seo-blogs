@@ -942,7 +942,7 @@ function insertSchemaScript(
 }
 
 const SPANISH_STOPWORDS = new Set([
-  "de", "del", "la", "las", "el", "los", "en", "un", "una", "unos", "unas",
+  "a", "de", "del", "la", "las", "el", "los", "en", "un", "una", "unos", "unas",
   "para", "por", "con", "sin", "sobre", "entre", "hasta", "desde", "hacia",
   "que", "cual", "como", "donde", "cuando", "es", "son", "ser", "estar",
   "hay", "fue", "sido", "siendo", "al", "lo", "le", "les", "se", "su", "sus",
