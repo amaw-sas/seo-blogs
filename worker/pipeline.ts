@@ -559,7 +559,7 @@ export async function runPipeline(
           contentHtml: post.contentHtml,
           metaTitle: bestResult.metaTitle,
           metaDescription: bestResult.metaDescription,
-          keyword: keyword.phrase,
+          keyword: generateFocusKeyphrase(post.title),
           status: "publish",
           featuredMediaId,
         },
@@ -950,6 +950,28 @@ const SPANISH_STOPWORDS = new Set([
   "esta", "estos", "estas", "ese", "esa", "esos", "esas", "aquel", "aquella",
 ]);
 
+/**
+ * Generate a Yoast-optimized focus keyphrase from the post title.
+ * - Uses the title (which has proper Spanish accents) instead of the raw keyword
+ * - Strips stopwords, keeps max 4 content words (Yoast recommendation)
+ * - Result is lowercase with accents preserved for exact matching in content
+ */
+function generateFocusKeyphrase(title: string): string {
+  const lower = title
+    .toLowerCase()
+    // Remove everything after colon (modifier part of title)
+    .replace(/:.*$/, "")
+    .trim();
+
+  // Normalize for stopword comparison but keep accents in output
+  const words = lower.split(/\s+/).filter((w) => {
+    const stripped = w.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return stripped.length > 0 && !SPANISH_STOPWORDS.has(stripped);
+  });
+
+  return words.slice(0, 4).join(" ");
+}
+
 function generateSlug(text: string): string {
   const normalized = text
     .toLowerCase()
@@ -1078,7 +1100,7 @@ function shortenKeyword(kw: string): string {
 }
 
 // ── Exports for testing ─────────────────────────────────────
-export { generateSlug, generateMetaDescription, extractTags, truncate,
+export { generateSlug, generateFocusKeyphrase, generateMetaDescription, extractTags, truncate,
          insertImagesIntoHtml, insertLinksIntoHtml, buildLinks, reduceKeywordDensity, SPANISH_STOPWORDS };
 
 async function logStep(

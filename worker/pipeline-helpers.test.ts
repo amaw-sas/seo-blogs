@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   generateSlug,
+  generateFocusKeyphrase,
   generateMetaDescription,
   extractTags,
   truncate,
@@ -9,6 +10,45 @@ import {
   buildLinks,
   reduceKeywordDensity,
 } from "./pipeline";
+
+// ── generateFocusKeyphrase ──────────────────────────────────
+
+describe("generateFocusKeyphrase", () => {
+  it("extracts max 4 content words from title before colon", () => {
+    const result = generateFocusKeyphrase("Licencia de conducción extranjera: alquilar carro en Colombia");
+    expect(result).toBe("licencia conducción extranjera");
+  });
+
+  it("preserves Spanish accents for Yoast exact matching", () => {
+    const result = generateFocusKeyphrase("Renta de carros Bogotá: impacto ambiental positivo");
+    expect(result).toContain("bogotá");
+    expect(result).not.toContain("bogota");
+  });
+
+  it("strips stopwords (de, en, para, etc.)", () => {
+    const result = generateFocusKeyphrase("Alquiler de carros en Barranquilla barato");
+    expect(result).not.toContain(" de ");
+    expect(result).not.toContain(" en ");
+  });
+
+  it("limits to 4 content words", () => {
+    const result = generateFocusKeyphrase("Alquiler carro Cali barato: tips reales para ahorrar");
+    const words = result.split(" ");
+    expect(words.length).toBeLessThanOrEqual(4);
+  });
+
+  it("handles title without colon", () => {
+    const result = generateFocusKeyphrase("Renta autos Cartagena guía completa");
+    expect(result.split(" ").length).toBeLessThanOrEqual(4);
+    expect(result).toContain("renta");
+    expect(result).toContain("cartagena");
+  });
+
+  it("returns lowercase", () => {
+    const result = generateFocusKeyphrase("Pico y Placa Solidario: guía para alquiler");
+    expect(result).toBe(result.toLowerCase());
+  });
+});
 
 // ── generateSlug ────────────────────────────────────────────
 
