@@ -205,7 +205,7 @@ export async function runPipeline(
         ? outline.metaTitle.slice(0, 60)
         : truncate(`${keyword.phrase} | ${site.name}`, 60);
       const metaDescription = content.metaDescription
-        ? content.metaDescription.slice(0, 160)
+        ? content.metaDescription.slice(0, 155)
         : truncate(
             generateMetaDescription(content.html, keyword.phrase),
             160,
@@ -335,7 +335,7 @@ export async function runPipeline(
       ? outline.metaTitle.slice(0, 60)
       : truncate(`${keyword.phrase} | ${site.name}`, 60);
     const metaDescription = content.metaDescription
-      ? content.metaDescription.slice(0, 160)
+      ? content.metaDescription.slice(0, 155)
       : truncate(generateMetaDescription(content.html, keyword.phrase), 160);
     const tags = extractTags(outline, keyword.phrase);
     const schema = generateArticleSchema(
@@ -559,7 +559,7 @@ export async function runPipeline(
           contentHtml: post.contentHtml,
           metaTitle: bestResult.metaTitle,
           metaDescription: bestResult.metaDescription,
-          keyword: generateFocusKeyphrase(post.title),
+          keyword: generateFocusKeyphrase(bestResult.metaTitle),
           status: "publish",
           featuredMediaId,
         },

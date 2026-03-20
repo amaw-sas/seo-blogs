@@ -170,8 +170,8 @@ REGLAS SEO CRITICAS (aprendidas de posts con alta puntuacion en Yoast/RankMath):
 KEYWORD PLACEMENT (el plugin SEO evalua cada uno de estos):
 1. INTRODUCCION: La keyword "${keyword}" DEBE aparecer textualmente en la PRIMERA ORACION del articulo. No parafraseada, no como sinonimo — la frase exacta.
 2. CUERPO: La keyword debe aparecer minimo 3-4 veces en total (intro, cuerpo, conclusion). Densidad entre 0.5%-2.5%.
-3. SUBTITULOS: Al menos 2 de los H2 deben contener la keyword o una variacion cercana.
-4. META DESCRIPTION: Debe incluir la keyword exacta. 120-155 caracteres con CTA implicito.
+3. SUBTITULOS: Al menos 2 de los H2 o H3 DEBEN contener la keyword "${keyword}" textual o una variacion muy cercana (mismo orden de palabras, se permite agregar articulos). Yoast verifica esto estrictamente.
+4. META DESCRIPTION: Debe incluir la keyword exacta. MAXIMO 155 caracteres (no 156+). CTA implicito.
 
 LONGITUD Y PROFUNDIDAD:
 - Objetivo: ${Math.round(siteConfig.minWords * 1.3)}-${siteConfig.maxWords} palabras. MINIMO ABSOLUTO: ${siteConfig.minWords}.
@@ -182,8 +182,13 @@ LONGITUD Y PROFUNDIDAD:
 ESTILO DE CONTENIDO (patron de posts exitosos):
 - Contenido PRACTICO y LOCAL: mencionar lugares reales, precios aproximados, distancias, nombres de empresas
 - Cada H2 abre con respuesta directa (2-3 oraciones) antes de profundizar — critico para featured snippets
-- Variar estructura entre secciones: parrafos narrativos, listas cortas, comparaciones, tips numerados
 - Tono: como un amigo local que te da consejos reales, no como un articulo de enciclopedia
+
+VARIEDAD DE FORMATO (obligatorio para evitar monotonia):
+- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>.
+- Incluir al menos 1 frase destacada con <blockquote> — un dato clave, consejo memorable o estadistica impactante.
+- Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
+- Variar estructura entre secciones: parrafos narrativos, tablas, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
 
 SECCION FAQ:
 - ${outline.faqQuestions.length} preguntas y respuestas detalladas
@@ -211,7 +216,7 @@ OBLIGATORIO:
 
 Estructura de la respuesta — responde SOLO con JSON valido (sin markdown code fences):
 {
-  "html": "<article>...contenido HTML completo con tags semanticos (h1, h2, h3, p, ul, ol, strong, em)...</article>",
+  "html": "<article>...contenido HTML completo con tags semanticos (h1, h2, h3, p, ul, ol, strong, em, table, thead, tbody, tr, th, td, blockquote)...</article>",
   "markdown": "# ...contenido en Markdown...",
   "metaDescription": "string (120-155 chars, DEBE incluir la keyword exacta '${keyword}', con CTA implicito)",
   "faqItems": [

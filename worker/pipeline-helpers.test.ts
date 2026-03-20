@@ -48,6 +48,21 @@ describe("generateFocusKeyphrase", () => {
     const result = generateFocusKeyphrase("Pico y Placa Solidario: guía para alquiler");
     expect(result).toBe(result.toLowerCase());
   });
+
+  it("all focuskw words appear in the input metaTitle (Yoast SEO title check)", () => {
+    const metaTitle = "Seguro para carro alquilado: guía completa";
+    const focuskw = generateFocusKeyphrase(metaTitle);
+    // Every content word in focuskw must be present in the metaTitle (lowercase)
+    const titleLower = metaTitle.toLowerCase();
+    for (const word of focuskw.split(" ")) {
+      expect(titleLower).toContain(word);
+    }
+  });
+
+  it("works with short metaTitle (fewer than 4 content words)", () => {
+    const result = generateFocusKeyphrase("Renta carros Bogotá");
+    expect(result).toBe("renta carros bogotá");
+  });
 });
 
 // ── generateSlug ────────────────────────────────────────────
