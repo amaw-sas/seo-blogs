@@ -322,22 +322,23 @@ Para el HTML:
   }
 
   // Add inline styles to tables for consistent rendering across themes
+  // Use word boundary (\b or >) to avoid matching <thead>/<tbody> with <th>/<td>
   html = html.replace(
-    /<table(?![^>]*style)/gi,
+    /<table(?=[>\s])(?![^>]*style)/gi,
     '<table style="width:100%;border-collapse:collapse;margin:1.5em 0"',
   );
   html = html.replace(
-    /<th(?![^>]*style)/gi,
+    /<th(?=[>\s])(?![^>]*style)/gi,
     '<th style="border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;text-align:left;font-weight:600"',
   );
   html = html.replace(
-    /<td(?![^>]*style)/gi,
+    /<td(?=[>\s])(?![^>]*style)/gi,
     '<td style="border:1px solid #ddd;padding:10px 14px"',
   );
 
   // Add inline styles to blockquotes for visual distinction
   html = html.replace(
-    /<blockquote(?![^>]*style)/gi,
+    /<blockquote(?=[>\s])(?![^>]*style)/gi,
     '<blockquote style="border-left:4px solid #3b82f6;margin:1.5em 0;padding:1em 1.5em;background:#f0f7ff;font-style:italic"',
   );
 
