@@ -342,6 +342,21 @@ Para el HTML:
     '<blockquote style="border-left:4px solid #3b82f6;margin:1.5em 0;padding:1em 1.5em;background:#f0f7ff;font-style:italic"',
   );
 
+  // Ensure at least one blockquote exists — LLM often ignores the instruction.
+  // Extract a strong sentence from the content to use as a highlighted quote.
+  if (!/<blockquote/i.test(html)) {
+    // Find a paragraph with <strong> content to promote as blockquote
+    const strongP = html.match(/<p>[^<]*<strong>([^<]{20,120})<\/strong>[^<]*<\/p>/i);
+    if (strongP) {
+      const quoteHtml = `<blockquote style="border-left:4px solid #3b82f6;margin:1.5em 0;padding:1em 1.5em;background:#f0f7ff;font-style:italic"><p>${strongP[1]}</p></blockquote>`;
+      // Insert after the first H2 section (after second <h2 or before second <h2)
+      const secondH2 = html.indexOf("<h2", html.indexOf("<h2") + 1);
+      if (secondH2 > -1) {
+        html = html.slice(0, secondH2) + quoteHtml + "\n" + html.slice(secondH2);
+      }
+    }
+  }
+
   return {
     html,
     markdown: content.markdown,
