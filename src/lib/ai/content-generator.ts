@@ -321,32 +321,23 @@ Para el HTML:
     }
   }
 
-  // Add inline styles to tables for consistent rendering across themes.
-  // Force display properties to override CSS frameworks that reset table elements to block.
-  // Use lookahead (?=[>\s]) to avoid matching <thead>/<tbody> with <th>/<td>.
+  // Wrap tables in a styled div and inject a <style> scoped block to override
+  // CSS frameworks (Tailwind @base) that reset table elements to display:block.
+  // Inline styles alone cannot beat framework !important rules.
   html = html.replace(
-    /<table(?=[>\s])(?![^>]*style)/gi,
-    '<table style="display:table;width:100%;border-collapse:collapse;margin:1.5em 0"',
-  );
-  html = html.replace(
-    /<thead(?=[>\s])(?![^>]*style)/gi,
-    '<thead style="display:table-header-group"',
-  );
-  html = html.replace(
-    /<tbody(?=[>\s])(?![^>]*style)/gi,
-    '<tbody style="display:table-row-group"',
-  );
-  html = html.replace(
-    /<tr(?=[>\s])(?![^>]*style)/gi,
-    '<tr style="display:table-row"',
-  );
-  html = html.replace(
-    /<th(?=[>\s])(?![^>]*style)/gi,
-    '<th style="display:table-cell;border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;text-align:left;font-weight:600"',
-  );
-  html = html.replace(
-    /<td(?=[>\s])(?![^>]*style)/gi,
-    '<td style="display:table-cell;border:1px solid #ddd;padding:10px 14px"',
+    /<table[\s\S]*?<\/table>/gi,
+    (match) => {
+      const id = `seo-table-${Date.now()}`;
+      const scopedStyle = `<style>
+#${id} table{display:table!important;width:100%!important;border-collapse:collapse!important;margin:1.5em 0!important}
+#${id} thead{display:table-header-group!important}
+#${id} tbody{display:table-row-group!important}
+#${id} tr{display:table-row!important}
+#${id} th,#${id} td{display:table-cell!important;border:1px solid #ddd!important;padding:10px 14px!important}
+#${id} th{background:#f8f9fa!important;font-weight:600!important;text-align:left!important}
+</style>`;
+      return `<div id="${id}">${scopedStyle}${match}</div>`;
+    },
   );
 
   // Add inline styles to blockquotes for visual distinction
