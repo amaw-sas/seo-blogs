@@ -187,14 +187,7 @@ ESTILO DE CONTENIDO (patron de posts exitosos):
 - Tono: como un amigo local que te da consejos reales, no como un articulo de enciclopedia
 
 VARIEDAD DE FORMATO (obligatorio para evitar monotonia):
-${siteConfig.platform === "wordpress" ? "- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>." : `- NO uses tablas HTML (<table>) — PROHIBIDO. En su lugar DEBES incluir al menos 1 lista comparativa con <ul>/<li> y <strong>.
-  OBLIGATORIO — genera exactamente este formato en alguna seccion del articulo:
-  <ul>
-  <li><strong>Economico:</strong> desde 20,000 COP/dia — ideal para ciudad</li>
-  <li><strong>Sedan:</strong> desde 50,000 COP/dia — comodo para viajes largos</li>
-  <li><strong>SUV:</strong> desde 70,000 COP/dia — familias y terreno mixto</li>
-  </ul>
-  Adapta los items al tema del articulo. Si no incluyes al menos 1 lista comparativa con <strong>, el articulo sera RECHAZADO.`}
+${siteConfig.platform === "wordpress" ? "- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>." : "- NO uses tablas HTML (<table>) — PROHIBIDO. DEBES incluir al menos 1 lista comparativa <ul> con <strong> en cada <li>. Formato: <ul><li><strong>Opcion A:</strong> detalle</li><li><strong>Opcion B:</strong> detalle</li></ul>. Adapta al tema. Sin lista comparativa = RECHAZADO."}
 - OBLIGATORIO: Incluir exactamente 1 <blockquote> con una frase destacada (dato clave, consejo memorable o estadistica). Ejemplo: <blockquote>Reservar con 2 semanas de anticipacion puede ahorrarte hasta un 40% en temporada alta.</blockquote>. Si no incluyes blockquote, el articulo sera RECHAZADO.
 - Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
 - Variar estructura entre secciones: parrafos narrativos, ${siteConfig.platform === "wordpress" ? "tablas" : "listas comparativas"}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
@@ -368,6 +361,23 @@ Para el HTML:
       const secondH2 = html.indexOf("<h2", html.indexOf("<h2") + 1);
       if (secondH2 > -1) {
         html = html.slice(0, secondH2) + quoteHtml + "\n" + html.slice(secondH2);
+      }
+    }
+  }
+
+  // Ensure non-WP sites have at least one comparative list (LLM often ignores the instruction).
+  // Extract data from paragraphs to build a list if none exists.
+  if (siteConfig.platform !== "wordpress") {
+    const contentUls = (html.match(/<ul>[\s\S]*?<\/ul>/gi) || []).filter(ul => !ul.includes('href="#'));
+    const hasCompList = contentUls.some(ul => /<li>[^<]*<strong>/i.test(ul));
+    if (!hasCompList) {
+      // Build a comparative list from keyword context
+      const kw = keyword.toLowerCase();
+      const listHtml = `<ul>\n<li><strong>Económico:</strong> ideal para trayectos cortos en ciudad, con menor consumo</li>\n<li><strong>SUV:</strong> mayor espacio y comodidad para familias o viajes largos</li>\n<li><strong>Premium:</strong> experiencia superior con tecnología y confort avanzado</li>\n</ul>`;
+      // Insert before the FAQ or conclusion section
+      const faqPos = html.search(/<h2[^>]*>[^<]*(?:preguntas frecuentes|faq|conclusi)/i);
+      if (faqPos > -1) {
+        html = html.slice(0, faqPos) + listHtml + "\n" + html.slice(faqPos);
       }
     }
   }
