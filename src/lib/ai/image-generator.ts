@@ -126,9 +126,9 @@ function buildImagePrompt(
   knowledgeBase?: string | null,
 ): string {
   const noOverlays = "Absolutely nothing written, printed, or displayed in the image. No signs, banners, screens, posters, people, hands, or cameras.";
-  const kbContext = knowledgeBase
-    ? ` Business context: ${knowledgeBase.slice(0, 300)}.`
-    : "";
+  // knowledgeBase is NOT injected into image prompts — it often contains brand names
+  // (Kia, Chevrolet, Toyota, etc.) that DALL-E rejects as trademark violations.
+  const kbContext = "";
 
   if (isHero) {
     return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape.${kbContext} Warm natural light, vivid colors, travel magazine quality. 16:9 panoramic composition. ${noOverlays}`;
