@@ -321,23 +321,32 @@ Para el HTML:
     }
   }
 
-  // Wrap tables in a styled div and inject a <style> scoped block to override
-  // CSS frameworks (Tailwind @base) that reset table elements to display:block.
-  // Inline styles alone cannot beat framework !important rules.
+  // Add inline styles with !important to override CSS frameworks (Tailwind @base)
+  // that reset table elements to display:block. WordPress strips <style> tags from
+  // post content, so scoped CSS doesn't work — inline !important is the only option.
   html = html.replace(
-    /<table[\s\S]*?<\/table>/gi,
-    (match) => {
-      const id = `seo-table-${Date.now()}`;
-      const scopedStyle = `<style>
-#${id} table{display:table!important;width:100%!important;border-collapse:collapse!important;margin:1.5em 0!important}
-#${id} thead{display:table-header-group!important}
-#${id} tbody{display:table-row-group!important}
-#${id} tr{display:table-row!important}
-#${id} th,#${id} td{display:table-cell!important;border:1px solid #ddd!important;padding:10px 14px!important}
-#${id} th{background:#f8f9fa!important;font-weight:600!important;text-align:left!important}
-</style>`;
-      return `<div id="${id}">${scopedStyle}${match}</div>`;
-    },
+    /<table(?=[>\s])(?![^>]*style)/gi,
+    '<table style="display:table!important;width:100%!important;border-collapse:collapse!important;margin:1.5em 0!important"',
+  );
+  html = html.replace(
+    /<thead(?=[>\s])(?![^>]*style)/gi,
+    '<thead style="display:table-header-group!important"',
+  );
+  html = html.replace(
+    /<tbody(?=[>\s])(?![^>]*style)/gi,
+    '<tbody style="display:table-row-group!important"',
+  );
+  html = html.replace(
+    /<tr(?=[>\s])(?![^>]*style)/gi,
+    '<tr style="display:table-row!important"',
+  );
+  html = html.replace(
+    /<th(?=[>\s])(?![^>]*style)/gi,
+    '<th style="display:table-cell!important;border:1px solid #ddd!important;padding:10px 14px!important;background:#f8f9fa!important;font-weight:600!important;text-align:left!important"',
+  );
+  html = html.replace(
+    /<td(?=[>\s])(?![^>]*style)/gi,
+    '<td style="display:table-cell!important;border:1px solid #ddd!important;padding:10px 14px!important"',
   );
 
   // Add inline styles to blockquotes for visual distinction
