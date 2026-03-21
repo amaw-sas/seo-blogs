@@ -321,32 +321,22 @@ Para el HTML:
     }
   }
 
-  // Add inline styles with !important to override CSS frameworks (Tailwind @base)
-  // that reset table elements to display:block. WordPress strips <style> tags from
-  // post content, so scoped CSS doesn't work — inline !important is the only option.
+  // Wrap tables in <figure class="wp-block-table"> — the standard WordPress Gutenberg
+  // table wrapper that themes (Astra, etc.) style correctly. WordPress strips `display:`
+  // from inline styles as a security measure, so CSS classes are the only reliable option.
+  // Also add inline styles for border/padding (WordPress keeps these, just strips display).
   html = html.replace(
-    /<table(?=[>\s])(?![^>]*style)/gi,
-    '<table style="display:table!important;width:100%!important;border-collapse:collapse!important;margin:1.5em 0!important"',
-  );
-  html = html.replace(
-    /<thead(?=[>\s])(?![^>]*style)/gi,
-    '<thead style="display:table-header-group!important"',
-  );
-  html = html.replace(
-    /<tbody(?=[>\s])(?![^>]*style)/gi,
-    '<tbody style="display:table-row-group!important"',
-  );
-  html = html.replace(
-    /<tr(?=[>\s])(?![^>]*style)/gi,
-    '<tr style="display:table-row!important"',
-  );
-  html = html.replace(
-    /<th(?=[>\s])(?![^>]*style)/gi,
-    '<th style="display:table-cell!important;border:1px solid #ddd!important;padding:10px 14px!important;background:#f8f9fa!important;font-weight:600!important;text-align:left!important"',
-  );
-  html = html.replace(
-    /<td(?=[>\s])(?![^>]*style)/gi,
-    '<td style="display:table-cell!important;border:1px solid #ddd!important;padding:10px 14px!important"',
+    /<table[\s\S]*?<\/table>/gi,
+    (match) => {
+      let styled = match;
+      styled = styled.replace(/<table(?=[>\s])(?![^>]*style)/gi,
+        '<table style="width:100%;border-collapse:collapse;margin:1.5em 0"');
+      styled = styled.replace(/<th(?=[>\s])(?![^>]*style)/gi,
+        '<th style="border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;font-weight:600;text-align:left"');
+      styled = styled.replace(/<td(?=[>\s])(?![^>]*style)/gi,
+        '<td style="border:1px solid #ddd;padding:10px 14px"');
+      return `<figure class="wp-block-table">${styled}</figure>`;
+    },
   );
 
   // Add inline styles to blockquotes for visual distinction
