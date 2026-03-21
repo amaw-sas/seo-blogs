@@ -14,6 +14,7 @@ export interface SiteConfig {
   authoritativeSources: string[];
   domain: string;
   knowledgeBase?: string | null;
+  platform?: string;
 }
 
 export interface OutlineSection {
@@ -186,10 +187,10 @@ ESTILO DE CONTENIDO (patron de posts exitosos):
 - Tono: como un amigo local que te da consejos reales, no como un articulo de enciclopedia
 
 VARIEDAD DE FORMATO (obligatorio para evitar monotonia):
-- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>.
+${siteConfig.platform === "wordpress" ? "- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>." : "- NO uses tablas HTML (<table>) — en su lugar usa listas comparativas con <strong> para los datos. Ejemplo: <ul><li><strong>Económico:</strong> desde 20,000 COP/día — ideal para ciudad</li><li><strong>SUV:</strong> desde 70,000 COP/día — familias y terreno mixto</li></ul>"}
 - OBLIGATORIO: Incluir exactamente 1 <blockquote> con una frase destacada (dato clave, consejo memorable o estadistica). Ejemplo: <blockquote>Reservar con 2 semanas de anticipacion puede ahorrarte hasta un 40% en temporada alta.</blockquote>. Si no incluyes blockquote, el articulo sera RECHAZADO.
 - Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
-- Variar estructura entre secciones: parrafos narrativos, tablas, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
+- Variar estructura entre secciones: parrafos narrativos, ${siteConfig.platform === "wordpress" ? "tablas" : "listas comparativas"}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
 
 SECCION FAQ:
 - ${outline.faqQuestions.length} preguntas y respuestas detalladas
@@ -321,23 +322,27 @@ Para el HTML:
     }
   }
 
-  // Wrap tables in <figure class="wp-block-table"> — the standard WordPress Gutenberg
-  // table wrapper that themes (Astra, etc.) style correctly. WordPress strips `display:`
-  // from inline styles as a security measure, so CSS classes are the only reliable option.
-  // Also add inline styles for border/padding (WordPress keeps these, just strips display).
-  html = html.replace(
-    /<table[\s\S]*?<\/table>/gi,
-    (match) => {
-      let styled = match;
-      styled = styled.replace(/<table(?=[>\s])(?![^>]*style)/gi,
-        '<table style="width:100%;border-collapse:collapse;margin:1.5em 0"');
-      styled = styled.replace(/<th(?=[>\s])(?![^>]*style)/gi,
-        '<th style="border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;font-weight:600;text-align:left"');
-      styled = styled.replace(/<td(?=[>\s])(?![^>]*style)/gi,
-        '<td style="border:1px solid #ddd;padding:10px 14px"');
-      return `<figure class="wp-block-table">${styled}</figure>`;
-    },
-  );
+  // WordPress: wrap tables in <figure class="wp-block-table"> for proper Gutenberg styling.
+  // Non-WordPress (Nuxt): the prompt already avoids tables, but strip any that slipped through.
+  if (siteConfig.platform === "wordpress") {
+    html = html.replace(
+      /<table[\s\S]*?<\/table>/gi,
+      (match) => {
+        let styled = match;
+        styled = styled.replace(/<table(?=[>\s])(?![^>]*style)/gi,
+          '<table style="width:100%;border-collapse:collapse;margin:1.5em 0"');
+        styled = styled.replace(/<th(?=[>\s])(?![^>]*style)/gi,
+          '<th style="border:1px solid #ddd;padding:10px 14px;background:#f8f9fa;font-weight:600;text-align:left"');
+        styled = styled.replace(/<td(?=[>\s])(?![^>]*style)/gi,
+          '<td style="border:1px solid #ddd;padding:10px 14px"');
+        return `<figure class="wp-block-table">${styled}</figure>`;
+      },
+    );
+  } else {
+    // Strip tables from non-WordPress platforms — replace with empty string
+    // (the LLM should have used lists instead, but just in case)
+    html = html.replace(/<table[\s\S]*?<\/table>/gi, "");
+  }
 
   // Add inline styles to blockquotes for visual distinction
   html = html.replace(

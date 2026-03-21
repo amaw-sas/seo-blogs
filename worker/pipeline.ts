@@ -81,6 +81,7 @@ export async function runPipeline(
     authoritativeSources: site.authoritativeSources,
     domain: site.domain,
     knowledgeBase: site.knowledgeBase,
+    platform: site.platform,
   };
 
   // Step 1: Select keyword
