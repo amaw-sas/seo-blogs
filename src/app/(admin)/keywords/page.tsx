@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { resolveSiteLabel } from "@/lib/ui/select-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -222,7 +223,9 @@ export default function KeywordsPage() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios" />
+            <SelectValue placeholder="Todos los sitios">
+              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los sitios</SelectItem>

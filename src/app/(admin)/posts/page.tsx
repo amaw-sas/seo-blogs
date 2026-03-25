@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { resolveSiteLabel } from "@/lib/ui/select-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,7 +123,9 @@ export default function PostsPage() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios" />
+            <SelectValue placeholder="Todos los sitios">
+              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los sitios</SelectItem>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { resolveSiteLabel } from "@/lib/ui/select-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -314,7 +315,9 @@ export default function ClustersPage() {
                 <Label htmlFor="clusterSite">Sitio</Label>
                 <Select value={newSiteId} onValueChange={(v: string | null) => setNewSiteId(v ?? "")}>
                   <SelectTrigger id="clusterSite">
-                    <SelectValue placeholder="Seleccionar sitio" />
+                    <SelectValue placeholder="Seleccionar sitio">
+                      {resolveSiteLabel(sites, newSiteId, undefined)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {sites.map((s) => (
@@ -346,7 +349,9 @@ export default function ClustersPage() {
           }}
         >
           <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios" />
+            <SelectValue placeholder="Todos los sitios">
+              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los sitios</SelectItem>
@@ -585,7 +590,9 @@ export default function ClustersPage() {
                   onValueChange={(v: string | null) => setSelectedPostId(v ?? "")}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar post" />
+                    <SelectValue placeholder="Seleccionar post">
+                      {sitePosts.find((p) => p.id === selectedPostId)?.title}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {sitePosts.map((p) => (

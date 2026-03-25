@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { resolveSiteLabel } from "@/lib/ui/select-helpers";
 import {
   Card,
   CardContent,
@@ -291,7 +292,9 @@ export default function StatsPage() {
         <div className="flex items-center gap-3">
           <Select value={selectedSiteId} onValueChange={(v) => setSelectedSiteId(v ?? "")}>
             <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Seleccionar sitio" />
+              <SelectValue placeholder="Seleccionar sitio">
+                {resolveSiteLabel(sites, selectedSiteId)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {sites.map((site) => (
