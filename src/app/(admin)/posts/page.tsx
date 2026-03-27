@@ -22,7 +22,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
+import { buildPostUrl } from "@/lib/ui/post-url";
 import { DeletePostDialog } from "@/components/delete-post-dialog";
 
 interface Site {
@@ -34,6 +35,7 @@ interface Site {
 interface Post {
   id: string;
   title: string;
+  slug: string;
   keyword: string;
   status: string;
   seoScore: number | null;
@@ -180,7 +182,7 @@ export default function PostsPage() {
               <TableHead className="text-right">Densidad</TableHead>
               <TableHead className="text-right">Palabras</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead className="w-[60px]" />
+              <TableHead className="w-[90px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -240,7 +242,23 @@ export default function PostsPage() {
                           year: "numeric",
                         })}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="flex items-center gap-1">
+                        {post.externalPostId && buildPostUrl(post.site.domain, post.slug) && (
+                          <a
+                            href={buildPostUrl(post.site.domain, post.slug)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-muted-foreground hover:text-blue-600"
+                            >
+                              <ExternalLink className="size-4" />
+                            </Button>
+                          </a>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon-sm"
