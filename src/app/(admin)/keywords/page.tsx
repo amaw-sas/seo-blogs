@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import {
   Upload,
   Sparkles,
+  Loader2,
   ChevronLeft,
   ChevronRight,
   Check,
@@ -81,6 +82,9 @@ export default function KeywordsPage() {
 
   const [siteFilter, setSiteFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [expanding, setExpanding] = useState(false);
+  const [expandMessage, setExpandMessage] = useState("");
 
   const fetchKeywords = useCallback(async () => {
     setLoading(true);
@@ -125,6 +129,65 @@ export default function KeywordsPage() {
       );
     } catch {
       // ignore
+    }
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (selected.size === keywords.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(keywords.map((k) => k.id)));
+    }
+  }
+
+  async function handleExpand() {
+    if (selected.size === 0) return;
+
+    // Determine siteId from selected keywords
+    const selectedKeywords = keywords.filter((k) => selected.has(k.id));
+    const siteIds = new Set(selectedKeywords.map((k) => {
+      const site = sites.find((s) => s.name === k.site.name && s.domain === k.site.domain);
+      return site?.id;
+    }).filter(Boolean));
+
+    if (siteIds.size !== 1) {
+      setExpandMessage("Selecciona keywords de un solo sitio");
+      return;
+    }
+
+    const siteId = [...siteIds][0]!;
+    setExpanding(true);
+    setExpandMessage("");
+
+    try {
+      const res = await fetch("/api/keywords/expand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keywordIds: [...selected], siteId }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Error al expandir");
+      }
+
+      const data = await res.json();
+      setExpandMessage(`${data.created} keywords creadas a partir de ${data.expanded} semillas`);
+      setSelected(new Set());
+      fetchKeywords();
+    } catch (err) {
+      setExpandMessage(err instanceof Error ? err.message : "Error al expandir keywords");
+    } finally {
+      setExpanding(false);
     }
   }
 
@@ -207,9 +270,15 @@ export default function KeywordsPage() {
             </DialogContent>
           </Dialog>
 
-          <Button variant="outline" size="sm" className="gap-2" disabled>
-            <Sparkles className="size-4" />
-            Expandir
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            disabled={selected.size === 0 || expanding}
+            onClick={handleExpand}
+          >
+            {expanding ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            {expanding ? "Expandiendo..." : `Expandir${selected.size > 0 ? ` (${selected.size})` : ""}`}
           </Button>
         </div>
       </div>
@@ -258,10 +327,24 @@ export default function KeywordsPage() {
         </Select>
       </div>
 
+      {expandMessage && (
+        <p className={`text-sm ${expandMessage.includes("Error") || expandMessage.includes("Selecciona") ? "text-red-600" : "text-green-600"}`}>
+          {expandMessage}
+        </p>
+      )}
+
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <input
+                  type="checkbox"
+                  checked={keywords.length > 0 && selected.size === keywords.length}
+                  onChange={toggleAll}
+                  className="size-4 rounded border-gray-300"
+                />
+              </TableHead>
               <TableHead>Frase</TableHead>
               <TableHead>Sitio</TableHead>
               <TableHead>Estado</TableHead>
@@ -274,7 +357,7 @@ export default function KeywordsPage() {
             {loading
               ? Array.from({ length: 5 }).map((_, i) => (
                   <TableRow key={i}>
-                    {Array.from({ length: 6 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <TableCell key={j}>
                         <Skeleton className="h-4 w-full" />
                       </TableCell>
@@ -284,7 +367,7 @@ export default function KeywordsPage() {
               : keywords.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="text-center text-muted-foreground py-8"
                     >
                       No se encontraron keywords
@@ -293,6 +376,14 @@ export default function KeywordsPage() {
                 ) : (
                   keywords.map((kw) => (
                     <TableRow key={kw.id}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(kw.id)}
+                          onChange={() => toggleSelect(kw.id)}
+                          className="size-4 rounded border-gray-300"
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{kw.phrase}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {kw.site.name}
