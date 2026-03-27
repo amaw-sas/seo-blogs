@@ -4,7 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ChevronLeft, ChevronRight, HelpCircle } from "lucide-react";
 
 interface CalendarPost {
   id: string;
@@ -75,6 +81,7 @@ export default function CalendarPage() {
   const [holidays, setHolidays] = useState<HolidayInfo[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -194,9 +201,20 @@ export default function CalendarPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold tracking-tight">
-          Calendario de contenido
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-xl font-bold tracking-tight">
+            Calendario de contenido
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setHelpOpen(true)}
+            title="¿Cómo usar el calendario?"
+          >
+            <HelpCircle className="size-5" />
+          </Button>
+        </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={prevMonth}>
             <ChevronLeft className="size-4" />
@@ -354,6 +372,68 @@ export default function CalendarPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Help dialog */}
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>¿Cómo usar el calendario?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm leading-relaxed">
+            <section>
+              <h4 className="font-semibold mb-1">Qué es el calendario</h4>
+              <p className="text-muted-foreground">
+                Vista mensual de todos los posts generados por el pipeline.
+                Muestra cuándo se creó, programó o publicó cada post, dando
+                visibilidad del ritmo de publicación de cada sitio.
+              </p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Cómo leerlo</h4>
+              <p className="text-muted-foreground mb-2">
+                Cada día muestra puntos de color según el estado de los posts:
+              </p>
+              <div className="space-y-1 text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <span className="inline-block size-2.5 rounded-full bg-green-500" />
+                  <strong>Verde</strong> — Publicado exitosamente
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="inline-block size-2.5 rounded-full bg-blue-500" />
+                  <strong>Azul</strong> — Programado (en revisión)
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="inline-block size-2.5 rounded-full bg-red-500" />
+                  <strong>Rojo</strong> — Error en generación o publicación
+                </p>
+                <p className="flex items-center gap-2">
+                  <span className="inline-block size-2.5 rounded-full bg-gray-400" />
+                  <strong>Gris</strong> — Borrador pendiente
+                </p>
+              </div>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Interacción</h4>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Click en un día para ver los posts de esa fecha</li>
+                <li>Click en el título del post para ir al editor</li>
+                <li>Navega entre meses con las flechas o &quot;Hoy&quot;</li>
+              </ol>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Días festivos</h4>
+              <p className="text-muted-foreground">
+                Los días con 🎉 son festivos configurados en el sistema
+                (nacionales, comerciales, lunares). El pipeline puede usar estas
+                fechas para generar contenido estacional automáticamente.
+              </p>
+            </section>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
