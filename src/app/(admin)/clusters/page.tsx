@@ -46,6 +46,7 @@ import {
   Network,
   Crown,
   FileText,
+  HelpCircle,
   X,
 } from "lucide-react";
 
@@ -110,6 +111,9 @@ export default function ClustersPage() {
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [siteFilter, setSiteFilter] = useState("");
+
+  // Help dialog state
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Create dialog state
   const [createOpen, setCreateOpen] = useState(false);
@@ -273,9 +277,20 @@ export default function ClustersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold tracking-tight">
-          Clusters de contenido
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-bold tracking-tight">
+            Clusters de contenido
+          </h2>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setHelpOpen(true)}
+            title="¿Qué es un cluster?"
+          >
+            <HelpCircle className="size-5" />
+          </Button>
+        </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger
             render={
@@ -613,6 +628,62 @@ export default function ClustersPage() {
               {addingPost ? "Agregando..." : "Agregar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Help dialog */}
+      <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>¿Qué es un cluster de contenido?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm leading-relaxed">
+            <section>
+              <h4 className="font-semibold mb-1">Qué es un cluster</h4>
+              <p className="text-muted-foreground">
+                Un cluster agrupa posts relacionados alrededor de una keyword
+                pilar. Es la estrategia SEO de autoridad temática: Google
+                posiciona mejor sitios que cubren un tema en profundidad desde
+                múltiples ángulos.
+              </p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Estructura</h4>
+              <div className="rounded-md border bg-muted/30 p-3 font-mono text-xs space-y-1">
+                <p>Cluster: &quot;Alquiler de carros Bogotá&quot;</p>
+                <p className="pl-3">👑 <strong>Pilar</strong> — Guía completa para alquilar carro en Bogotá</p>
+                <p className="pl-3">📄 Satélite — Requisitos para alquilar carro en Colombia</p>
+                <p className="pl-3">📄 Satélite — Mejores carros económicos para alquilar</p>
+                <p className="pl-3">📄 Satélite — Alquiler cerca al aeropuerto El Dorado</p>
+              </div>
+              <p className="text-muted-foreground mt-1">
+                Los satélites enlazan al pilar y viceversa, creando una red de
+                links internos que Google interpreta como autoridad.
+              </p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Cómo usarlo</h4>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li><strong>Crear cluster</strong> — nombre + keyword pilar + sitio</li>
+                <li><strong>Agregar posts</strong> — expandir cluster → &quot;Agregar post&quot;</li>
+                <li><strong>Post pilar</strong> — el primero marcado como pilar aparece con badge dorado</li>
+                <li><strong>Quitar posts</strong> — click en la X junto a cada post</li>
+              </ol>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Flujo recomendado</h4>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Genera keywords con &quot;Expandir&quot; (seed + long-tails)</li>
+                <li>El pipeline genera posts para esas keywords</li>
+                <li>Crea un cluster con la keyword seed como pilar</li>
+                <li>Asigna el post seed como pilar, y los long-tail como satélites</li>
+                <li>El auto-linker inyecta links internos entre posts del cluster</li>
+              </ol>
+            </section>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
