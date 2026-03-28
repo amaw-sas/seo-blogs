@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Globe, Loader2, Play, Check, X } from "lucide-react";
+import { Plus, Pencil, Globe, Loader2, Play, Palette, KeyRound, Check, X } from "lucide-react";
 
 interface Site {
   id: string;
@@ -37,6 +37,7 @@ interface Site {
   platform: string;
   apiUrl: string | null;
   apiUser: string | null;
+  apiPassword: string | null;
   postsPerDay: number;
   minWords: number;
   maxWords: number;
@@ -348,11 +349,25 @@ function SiteFormDialog({
             </div>
             <div className="space-y-2">
               <Label>Contraseña API</Label>
-              <Input
-                type="password"
-                value={form.apiPassword}
-                onChange={(e) => update("apiPassword", e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  type="password"
+                  value={form.apiPassword}
+                  onChange={(e) => update("apiPassword", e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={() => update("apiPassword", crypto.randomUUID())}
+                  title="Generar API Key"
+                >
+                  <KeyRound className="size-3" />
+                  Generar
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -439,6 +454,7 @@ export default function SitesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editSite, setEditSite] = useState<Site | null>(null);
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
+  const [theming, setTheming] = useState<Record<string, boolean>>({});
   const [progressSite, setProgressSite] = useState<{
     id: string;
     name: string;
@@ -491,6 +507,23 @@ export default function SitesPage() {
       alert("Error de conexión");
     } finally {
       setGenerating((prev) => ({ ...prev, [site.id]: false }));
+    }
+  }
+
+  async function handleTheme(siteId: string) {
+    setTheming((prev) => ({ ...prev, [siteId]: true }));
+    try {
+      const res = await fetch(`/api/sites/${siteId}/theme`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "Error al configurar tema");
+        return;
+      }
+      alert(`Tema configurado: ${data.theme.colorScheme} + ${data.theme.fontFamily}`);
+    } catch {
+      alert("Error de conexión");
+    } finally {
+      setTheming((prev) => ({ ...prev, [siteId]: false }));
     }
   }
 
@@ -589,6 +622,20 @@ export default function SitesPage() {
                   >
                     <Pencil className="size-3" />
                     Editar configuración
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    disabled={!site.apiUrl || !site.apiPassword || theming[site.id]}
+                    onClick={() => handleTheme(site.id)}
+                  >
+                    {theming[site.id] ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Palette className="size-3" />
+                    )}
+                    {theming[site.id] ? "Generando tema..." : "Configurar tema"}
                   </Button>
                   <Button
                     size="sm"
