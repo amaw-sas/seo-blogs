@@ -1,11 +1,11 @@
 /**
- * Image generation using Freepik Mystic (primary) with DALL-E fallback.
- * All images compressed to WebP via sharp.
+ * Image generation using GPT Image 1 Mini.
+ * All images compressed to WebP via shared compressor utility.
  */
 
 import OpenAI from "openai";
 import sharp from "sharp";
-import { generateImageWithFreepik } from "./freepik-client";
+import { compressToWebP } from "../../../worker/utils/image-compressor";
 
 export interface GeneratedImage {
   buffer: Buffer;
@@ -22,7 +22,7 @@ function getClient(): OpenAI {
 }
 
 /**
- * Generate post images using DALL-E and compress to WebP <= maxSizeKB.
+ * Generate post images using GPT Image 1 Mini and compress to WebP <= maxSizeKB.
  */
 export async function generatePostImages(
   title: string,
@@ -46,7 +46,7 @@ export async function generatePostImages(
     images.push({
       buffer: compressed,
       altText,
-      width: metadata.width ?? 1792,
+      width: metadata.width ?? 1024,
       height: metadata.height ?? 1024,
       fileSize: compressed.length,
     });
@@ -56,40 +56,36 @@ export async function generatePostImages(
 }
 
 /**
- * Generate a raw image buffer. Tries Freepik Mystic first, falls back to DALL-E.
+ * Generate a single image with GPT Image 1 Mini.
+ * Used by pre-generation endpoint to populate the pool.
+ */
+export async function generateSingleImage(prompt: string): Promise<Buffer> {
+  return generateRawImage(prompt);
+}
+
+/**
+ * Generate a raw image buffer using GPT Image 1 Mini.
  */
 async function generateRawImage(prompt: string): Promise<Buffer> {
-  // Try Freepik Mystic first
-  if (process.env.FREEPIK_API_KEY) {
-    try {
-      return await generateImageWithFreepik(prompt, "widescreen_16_9");
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      console.warn(`[ImageGen] Freepik failed, falling back to DALL-E: ${msg}`);
-    }
-  }
-
-  // Fallback: DALL-E 3
   const client = getClient();
   const response = await client.images.generate({
-    model: "dall-e-3",
+    model: "gpt-image-1",
     prompt,
     n: 1,
-    size: "1792x1024",
-    response_format: "b64_json",
-    quality: "standard",
+    size: "1024x1024",
+    quality: "medium",
   });
 
   const b64Data = response.data?.[0]?.b64_json;
   if (!b64Data) {
-    throw new Error("DALL-E returned no image data");
+    throw new Error("GPT Image 1 returned no image data");
   }
   return Buffer.from(b64Data, "base64");
 }
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function generateAltText(
+export function generateAltText(
   _revisedPrompt: string,
   keyword: string,
   isHero: boolean,
@@ -97,19 +93,14 @@ function generateAltText(
   context: string,
 ): string {
   // Alt text must include the keyword naturally for SEO plugin compliance.
-  // Good pattern: "renta autos cartagena ciudad amurallada" (keyword + descriptive context)
-  // Bad pattern: full title repeated as alt text (keyword stuffing)
   const trimmedContext = context.trim();
   const keywordLower = keyword.toLowerCase();
 
   if (trimmedContext) {
-    // Check if context already contains the keyword
     const contextLower = trimmedContext.toLowerCase();
     if (contextLower.includes(keywordLower)) {
-      // Context already has keyword — use as-is, truncated
       return trimmedContext.length > 100 ? trimmedContext.slice(0, 100).trimEnd() : trimmedContext;
     }
-    // Prepend keyword naturally: "keyword — context description"
     const combined = `${keyword} — ${trimmedContext}`;
     return combined.length > 100 ? combined.slice(0, 100).trimEnd() : combined;
   }
@@ -119,7 +110,7 @@ function generateAltText(
     : `Detalle visual relacionado con ${keyword}`;
 }
 
-function buildImagePrompt(
+export function buildImagePrompt(
   context: string,
   keyword: string,
   isHero: boolean,
@@ -127,46 +118,12 @@ function buildImagePrompt(
 ): string {
   const noOverlays = "Absolutely nothing written, printed, or displayed in the image. No signs, banners, screens, posters, people, hands, or cameras.";
   // knowledgeBase is NOT injected into image prompts — it often contains brand names
-  // (Kia, Chevrolet, Toyota, etc.) that DALL-E rejects as trademark violations.
+  // (Kia, Chevrolet, Toyota, etc.) that the API rejects as trademark violations.
   const kbContext = "";
 
   if (isHero) {
-    return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape.${kbContext} Warm natural light, vivid colors, travel magazine quality. 16:9 panoramic composition. ${noOverlays}`;
+    return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape.${kbContext} Warm natural light, vivid colors, travel magazine quality. Balanced square composition. ${noOverlays}`;
   }
 
-  return `A detailed photograph that illustrates: "${context}". The image should show a specific scene, object, or environment directly related to this topic.${kbContext} Natural light, warm tones, shallow focus, editorial quality. 16:9 close composition. ${noOverlays}`;
+  return `A detailed photograph that illustrates: "${context}". The image should show a specific scene, object, or environment directly related to this topic.${kbContext} Natural light, warm tones, shallow focus, editorial quality. Centered square composition. ${noOverlays}`;
 }
-
-/**
- * Compress an image buffer to WebP format within a target file size.
- * Starts at quality 50 and reduces if needed.
- */
-async function compressToWebP(
-  buffer: Buffer,
-  maxSizeKB: number,
-): Promise<Buffer> {
-  const maxBytes = maxSizeKB * 1024;
-  let quality = 50;
-
-  while (quality >= 10) {
-    const result = await sharp(buffer)
-      .resize({ width: 1200, withoutEnlargement: true })
-      .webp({ quality })
-      .toBuffer();
-
-    if (result.length <= maxBytes) {
-      return result;
-    }
-
-    quality -= 10;
-  }
-
-  // Final attempt at minimum quality with smaller dimensions
-  return sharp(buffer)
-    .resize({ width: 800, withoutEnlargement: true })
-    .webp({ quality: 5 })
-    .toBuffer();
-}
-
-// ── Exports for testing ─────────────────────────────────────
-export { generateAltText };

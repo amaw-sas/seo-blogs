@@ -33,7 +33,7 @@ describe("generateAltText", () => {
     expect(result).toBe("Fotografia sobre marketing digital");
   });
 
-  it("ignores DALL-E revised prompt — uses context instead", () => {
+  it("ignores revised prompt — uses context instead", () => {
     const revised = "A vibrant cityscape with digital billboards. The scene captures modern marketing.";
     const result = generateAltText(revised, keyword, true, 0, heroContext);
     expect(result).not.toContain("vibrant");
@@ -41,7 +41,7 @@ describe("generateAltText", () => {
     expect(result).toBe(heroContext);
   });
 
-  it("ignores DALL-E prompt patterns — uses context instead", () => {
+  it("ignores AI prompt patterns — uses context instead", () => {
     const revised = "close-up, documentary style image related to 'car rentals in Cartagena prices', shot with a simulated 85mm lens";
     const result = generateAltText(revised, "alquilar carro en cartagena", false, 1, contentContext);
     expect(result).not.toContain("close-up");
@@ -51,7 +51,7 @@ describe("generateAltText", () => {
     expect(result).toContain(contentContext);
   });
 
-  it("falls back and still ignores DALL-E English content when context is empty", () => {
+  it("falls back and still ignores AI English content when context is empty", () => {
     const revised = "Realistic photo in documentary style taken with an equivalent of a 35mm lens at f/2.8";
     const result = generateAltText(revised, keyword, true, 0, "");
     expect(result).not.toContain("Realistic");

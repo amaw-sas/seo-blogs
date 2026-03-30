@@ -41,6 +41,7 @@ model Site {
   analytics     Analytics[]
   abTests       SiteAbTest[]
   notifications Notification[]
+  imagePool     ImagePool[]
 
   @@map("sites")
 }
@@ -91,6 +92,7 @@ model Post {
   clusterPosts ClusterPost[]
   abTests      SiteAbTest[]
   analytics    Analytics[]
+  imagePool    ImagePool[]
 
   @@unique([siteId, slug])
   @@index([siteId, status])
@@ -171,11 +173,55 @@ model Category {
   name   String
   slug   String
 
-  site  Site   @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  posts Post[]
+  site      Site        @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  posts     Post[]
+  imagePool ImagePool[]
 
   @@unique([siteId, slug])
   @@map("categories")
+}
+
+// ─── Image Pool ──────────────────────────────────────────────
+
+enum ImagePoolSource {
+  ai_pregenerated
+  manual
+
+  @@map("image_pool_source")
+}
+
+enum ImagePoolStatus {
+  available
+  used
+
+  @@map("image_pool_status")
+}
+
+model ImagePool {
+  id                   String          @id @default(cuid())
+  siteId               String          @map("site_id")
+  categoryId           String?         @map("category_id")
+  url                  String
+  altTextBase          String          @map("alt_text_base")
+  width                Int
+  height               Int
+  fileSize             Int             @map("file_size")
+  source               ImagePoolSource
+  status               ImagePoolStatus @default(available)
+  postId               String?         @map("post_id")
+  generatedFromKeyword String?         @map("generated_from_keyword")
+  reuseCount           Int             @default(0) @map("reuse_count")
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
+
+  site     Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id])
+  post     Post?     @relation(fields: [postId], references: [id])
+
+  @@index([siteId, source, status])
+  @@index([siteId, categoryId, status])
+  @@index([siteId, status, reuseCount])
+  @@map("image_pool")
 }
 
 // ─── Post Assets ─────────────────────────────────────────────

@@ -52,7 +52,21 @@ vi.mock("../src/lib/ai/competition-analyzer", () => ({
 
 vi.mock("../src/lib/ai/image-generator", () => ({
   generatePostImages: vi.fn(),
+  generateAltText: vi.fn((_rev: string, keyword: string, isHero: boolean, _idx: number, context: string) => {
+    return `${keyword} — ${context}`;
+  }),
 }));
+
+const mockPoolQueries = vi.hoisted(() => ({
+  getAvailablePoolImages: vi.fn(),
+  markPoolImagesAsUsed: vi.fn(),
+  getManualPoolImages: vi.fn(),
+  getReusablePoolImages: vi.fn(),
+  incrementReuseCount: vi.fn(),
+  saveToPool: vi.fn(),
+}));
+
+vi.mock("../src/lib/db/image-pool-queries", () => mockPoolQueries);
 
 vi.mock("../src/lib/ai/auto-categorizer", () => ({
   categorizePost: vi.fn(),
@@ -205,6 +219,14 @@ function setupHappyPath(siteOverrides: Record<string, unknown> = {}) {
   (addConversionLink as Mock).mockReturnValue(
     makeContent().html + '<a href="https://example.com/contacto">CTA</a>',
   );
+
+  // Pool queries — empty by default so Level 2 (generation) kicks in
+  mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
+  mockPoolQueries.markPoolImagesAsUsed.mockResolvedValue(undefined);
+  mockPoolQueries.getManualPoolImages.mockResolvedValue([]);
+  mockPoolQueries.getReusablePoolImages.mockResolvedValue([]);
+  mockPoolQueries.incrementReuseCount.mockResolvedValue(undefined);
+  mockPoolQueries.saveToPool.mockResolvedValue({});
 
   return site;
 }
@@ -453,5 +475,149 @@ describe("runPipeline — edge cases", () => {
     await runPipeline(SITE_ID);
 
     expect(addConversionLink).not.toHaveBeenCalled();
+  });
+});
+
+// ── Image pool fallback chain ───────────────────────────────
+
+function makePoolImage(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "pool-1",
+    siteId: SITE_ID,
+    categoryId: null,
+    url: "https://example.com/pool-1.webp",
+    altTextBase: "ciudad bogotá tráfico centro",
+    width: 1024,
+    height: 1024,
+    fileSize: 50000,
+    source: "ai_pregenerated",
+    status: "available",
+    reuseCount: 0,
+    postId: null,
+    generatedFromKeyword: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+describe("runPipeline — image pool fallback chain", () => {
+  it("S1: generates via GPT Image 1 Mini when pool is empty (Level 2)", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
+
+    await runPipeline(SITE_ID);
+
+    expect(generatePostImages).toHaveBeenCalled();
+    expect(mockPoolQueries.saveToPool).toHaveBeenCalled();
+    // costImages > 0 is logged in the image_generation step
+    const logCalls = mockPrisma.publishLog.create.mock.calls;
+    const imageLog = logCalls.find(
+      (call: Array<{ data: { eventType?: string; status?: string; metadata?: Record<string, unknown> } }>) =>
+        call[0]?.data?.eventType === "image_generation" && call[0]?.data?.status === "success",
+    );
+    expect(imageLog).toBeDefined();
+    expect(imageLog[0].data.metadata.costImages).toBeGreaterThan(0);
+  });
+
+  it("S2: consumes pool images when pool has >= 2 available (Level 1)", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([
+      makePoolImage({ id: "pool-1", url: "https://example.com/pool-1.webp" }),
+      makePoolImage({ id: "pool-2", url: "https://example.com/pool-2.webp" }),
+    ]);
+
+    await runPipeline(SITE_ID);
+
+    expect(generatePostImages).not.toHaveBeenCalled();
+    expect(mockPoolQueries.markPoolImagesAsUsed).toHaveBeenCalledWith(
+      ["pool-1", "pool-2"],
+      "pending",
+    );
+    // costImages = 0
+    const logCalls = mockPrisma.publishLog.create.mock.calls;
+    const imageLog = logCalls.find(
+      (call: Array<{ data: { eventType?: string; status?: string; metadata?: Record<string, unknown> } }>) =>
+        call[0]?.data?.eventType === "image_generation" && call[0]?.data?.status === "success",
+    );
+    expect(imageLog).toBeDefined();
+    expect(imageLog[0].data.metadata.costImages).toBe(0);
+  });
+
+  it("S3: partial pool — 1 from pool + 1 generated (Level 1 + Level 2)", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([
+      makePoolImage({ id: "pool-1" }),
+    ]);
+    // generatePostImages will be called for 1 remaining image
+    (generatePostImages as Mock).mockResolvedValue([
+      { buffer: Buffer.from("img1"), altText: "Generated img", width: 800, height: 600, fileSize: 45000 },
+    ]);
+
+    await runPipeline(SITE_ID);
+
+    expect(mockPoolQueries.markPoolImagesAsUsed).toHaveBeenCalledWith(["pool-1"], "pending");
+    expect(generatePostImages).toHaveBeenCalledWith(
+      expect.any(String),
+      "nueva keyword seo",
+      1,
+      expect.any(Array),
+      undefined,
+    );
+    // costImages reflects 1 generated image
+    const logCalls = mockPrisma.publishLog.create.mock.calls;
+    const imageLog = logCalls.find(
+      (call: Array<{ data: { eventType?: string; status?: string; metadata?: Record<string, unknown> } }>) =>
+        call[0]?.data?.eventType === "image_generation" && call[0]?.data?.status === "success",
+    );
+    expect(imageLog[0].data.metadata.costImages).toBeCloseTo(0.015);
+  });
+
+  it("S4: manual fallback when API fails (Level 3)", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
+    (generatePostImages as Mock).mockRejectedValue(new Error("OpenAI API down"));
+    mockPoolQueries.getManualPoolImages.mockResolvedValue([
+      makePoolImage({ id: "manual-1", source: "manual", url: "https://example.com/manual-1.webp" }),
+      makePoolImage({ id: "manual-2", source: "manual", url: "https://example.com/manual-2.webp" }),
+    ]);
+
+    await runPipeline(SITE_ID);
+
+    // Manual images should NOT be marked as used
+    expect(mockPoolQueries.markPoolImagesAsUsed).not.toHaveBeenCalledWith(
+      expect.arrayContaining(["manual-1"]),
+      expect.anything(),
+    );
+  });
+
+  it("S5: reuse as last resort (Level 4)", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
+    (generatePostImages as Mock).mockRejectedValue(new Error("OpenAI API down"));
+    mockPoolQueries.getManualPoolImages.mockResolvedValue([]);
+    mockPoolQueries.getReusablePoolImages.mockResolvedValue([
+      makePoolImage({ id: "reuse-1", status: "used", reuseCount: 1, url: "https://example.com/reuse-1.webp" }),
+      makePoolImage({ id: "reuse-2", status: "used", reuseCount: 2, url: "https://example.com/reuse-2.webp" }),
+    ]);
+
+    await runPipeline(SITE_ID);
+
+    expect(mockPoolQueries.incrementReuseCount).toHaveBeenCalledWith(["reuse-1", "reuse-2"]);
+  });
+
+  it("S6: pipeline survives with no images at all", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
+    (generatePostImages as Mock).mockRejectedValue(new Error("OpenAI API down"));
+    mockPoolQueries.getManualPoolImages.mockResolvedValue([]);
+    mockPoolQueries.getReusablePoolImages.mockResolvedValue([]);
+
+    const result = await runPipeline(SITE_ID);
+
+    // Pipeline completes — post saved with zero images
+    expect(result.postId).toBe(POST_ID);
+    const createArgs = mockPrisma.post.create.mock.calls[0][0];
+    expect(createArgs.data.images.create).toHaveLength(0);
   });
 });

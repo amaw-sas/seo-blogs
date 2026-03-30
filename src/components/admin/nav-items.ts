@@ -6,6 +6,7 @@ import {
   Network,
   Calendar,
   ScrollText,
+  ImageIcon,
   BarChart3,
   Settings,
   type LucideIcon,
@@ -25,6 +26,7 @@ export const navItems: NavItem[] = [
   { title: "Clusters", href: "/clusters", icon: Network },
   { title: "Calendario", href: "/calendar", icon: Calendar },
   { title: "Logs", href: "/logs", icon: ScrollText },
+  { title: "Image Pool", href: "/image-pool", icon: ImageIcon },
   { title: "Estadísticas", href: "/stats", icon: BarChart3 },
   { title: "Configuración", href: "/settings", icon: Settings },
 ];

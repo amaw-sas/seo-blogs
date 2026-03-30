@@ -13,7 +13,15 @@ import {
   type GeneratedContent,
 } from "../src/lib/ai/content-generator";
 import { analyzeCompetition, type CompetitionAnalysis } from "../src/lib/ai/competition-analyzer";
-import { generatePostImages } from "../src/lib/ai/image-generator";
+import { generatePostImages, generateAltText } from "../src/lib/ai/image-generator";
+import {
+  getAvailablePoolImages,
+  markPoolImagesAsUsed,
+  getManualPoolImages,
+  getReusablePoolImages,
+  incrementReuseCount,
+  saveToPool,
+} from "../src/lib/db/image-pool-queries";
 import { calculateSeoScore, type ScorerInput } from "../src/lib/ai/seo-scorer";
 import { generateArticleSchema } from "../src/lib/seo/schema-markup";
 import {
@@ -182,14 +190,14 @@ export async function runPipeline(
       const nonFaqSections = outline.sections.filter(
         (s) => !/faq|preguntas frecuentes|conclusion/i.test(s.text),
       );
-      // Hero: use first H2 (more concrete than H1 for DALL-E)
+      // Hero: use first H2 (more concrete than H1 for image generation)
       // Content: use a mid-article H2 for contextual relevance
       const heroContext = nonFaqSections[0]?.text ?? outline.h1;
       const midSectionIdx = Math.floor(nonFaqSections.length * 0.6);
       const sectionContexts = nonFaqSections
         .slice(midSectionIdx, midSectionIdx + 2)
         .map((s) => s.text);
-      const images = await generateAndUploadImages(
+      const { images, costImages } = await generateAndUploadImages(
         heroContext,
         keyword.phrase,
         siteId,
@@ -198,6 +206,7 @@ export async function runPipeline(
       );
       await logStep(siteId, null, "image_generation", "success", {
         count: images.length,
+        costImages,
       });
 
       // Step 5: Generate SEO metadata
@@ -330,7 +339,7 @@ export async function runPipeline(
       .filter((s) => !/faq|preguntas frecuentes/i.test(s.text))
       .slice(Math.floor(outline.sections.length * 0.6))
       .map((s) => s.text);
-    const images = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections, siteConfig.knowledgeBase);
+    const { images } = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections, siteConfig.knowledgeBase);
     const slug = generateSlug(keyword.phrase);
     const metaTitle = outline.metaTitle
       ? outline.metaTitle.slice(0, 60)
@@ -744,7 +753,7 @@ async function generateAndUploadImages(
   siteId: string,
   sectionContexts?: string[],
   knowledgeBase?: string | null,
-): Promise<UploadedImage[]> {
+): Promise<{ images: UploadedImage[]; costImages: number }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -753,39 +762,133 @@ async function generateAndUploadImages(
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const rawImages = await generatePostImages(title, keyword, 2, sectionContexts, knowledgeBase);
+  const needed = 2;
   const uploaded: UploadedImage[] = [];
+  let costImages = 0;
 
-  for (let i = 0; i < rawImages.length; i++) {
-    const img = rawImages[i];
-    const timestamp = Date.now();
-    const filename = `${siteId}/${timestamp}-${i}.webp`;
-
-    const { error } = await supabase.storage
-      .from("post-images")
-      .upload(filename, img.buffer, {
-        contentType: "image/webp",
-        cacheControl: "31536000",
-      });
-
-    if (error) {
-      throw new Error(`Failed to upload image: ${error.message}`);
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("post-images").getPublicUrl(filename);
-
-    uploaded.push({
-      url: publicUrl,
-      altText: img.altText,
-      width: img.width,
-      height: img.height,
-      fileSize: img.fileSize,
-    });
+  function poolImageToUploaded(poolImg: { url: string; altTextBase: string; width: number; height: number; fileSize: number }): UploadedImage {
+    const isHero = uploaded.length === 0;
+    return {
+      url: poolImg.url,
+      altText: generateAltText("", keyword, isHero, uploaded.length, poolImg.altTextBase),
+      width: poolImg.width,
+      height: poolImg.height,
+      fileSize: poolImg.fileSize,
+    };
   }
 
-  return uploaded;
+  // Level 1: Try pre-generated pool images
+  try {
+    const poolImages = await getAvailablePoolImages(siteId, needed);
+    for (const poolImg of poolImages) {
+      uploaded.push(poolImageToUploaded(poolImg));
+    }
+    if (poolImages.length > 0) {
+      await markPoolImagesAsUsed(
+        poolImages.map((img) => img.id),
+        // postId not available yet — will be linked after post creation
+        "pending",
+      );
+    }
+  } catch (error) {
+    // Pool query failure is non-fatal — continue to Level 2
+    console.error("Pool Level 1 failed:", error instanceof Error ? error.message : String(error));
+  }
+
+  // Level 2: Generate new images for remaining slots
+  let remaining = needed - uploaded.length;
+  if (remaining > 0) {
+    try {
+      const rawImages = await generatePostImages(title, keyword, remaining, sectionContexts, knowledgeBase);
+      for (let i = 0; i < rawImages.length; i++) {
+        const img = rawImages[i];
+        const timestamp = Date.now();
+        const filename = `${siteId}/${timestamp}-${uploaded.length + i}.webp`;
+
+        const { error } = await supabase.storage
+          .from("post-images")
+          .upload(filename, img.buffer, {
+            contentType: "image/webp",
+            cacheControl: "31536000",
+          });
+
+        if (error) {
+          throw new Error(`Failed to upload image: ${error.message}`);
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("post-images").getPublicUrl(filename);
+
+        uploaded.push({
+          url: publicUrl,
+          altText: img.altText,
+          width: img.width,
+          height: img.height,
+          fileSize: img.fileSize,
+        });
+
+        // Save generated image to pool as "used"
+        try {
+          const isHero = i === 0 && uploaded.length - rawImages.length === 0;
+          const context = isHero ? title : (sectionContexts?.[i - 1] ?? title);
+          await saveToPool({
+            siteId,
+            url: publicUrl,
+            altTextBase: context,
+            width: img.width,
+            height: img.height,
+            fileSize: img.fileSize,
+            source: "ai_pregenerated",
+            status: "used",
+          });
+        } catch {
+          // saveToPool failure is non-fatal
+        }
+      }
+      costImages += rawImages.length * 0.015;
+    } catch (error) {
+      // Level 2 failed — fall through to Level 3
+      console.error("Image generation (Level 2) failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // Level 3: Manual pool images (fallback)
+  remaining = needed - uploaded.length;
+  if (remaining > 0) {
+    try {
+      const manualImages = await getManualPoolImages(siteId, remaining);
+      for (const poolImg of manualImages) {
+        uploaded.push(poolImageToUploaded(poolImg));
+      }
+      // Manual images are NOT marked as used — they stay available
+    } catch (error) {
+      console.error("Pool Level 3 failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // Level 4: Reuse previously used pool images (last resort)
+  remaining = needed - uploaded.length;
+  if (remaining > 0) {
+    try {
+      const reusableImages = await getReusablePoolImages(siteId, remaining);
+      for (const poolImg of reusableImages) {
+        uploaded.push(poolImageToUploaded(poolImg));
+      }
+      if (reusableImages.length > 0) {
+        await incrementReuseCount(reusableImages.map((img) => img.id));
+      }
+    } catch (error) {
+      console.error("Pool Level 4 failed:", error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // If still no images, log warning but don't fail
+  if (uploaded.length === 0) {
+    console.warn(`No images available for site ${siteId} — post will have no images`);
+  }
+
+  return { images: uploaded, costImages };
 }
 
 interface PostLink {

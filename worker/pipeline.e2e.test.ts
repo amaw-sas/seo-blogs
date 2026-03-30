@@ -2,12 +2,13 @@
  * E2E Pipeline Test
  *
  * Runs the full content generation pipeline against real services:
- * - OpenAI (GPT-4o + DALL-E)
+ * - OpenAI (GPT-4o + GPT Image 1 Mini for images)
  * - Supabase (DB + Storage)
  *
  * WordPress is skipped (platform="custom", no WP credentials).
+ * Images use the 4-level fallback chain: pool → GPT Image 1 Mini → manual → reuse.
  *
- * NOT included in CI — requires real credentials and costs ~$0.15-0.30/run.
+ * NOT included in CI — requires real credentials and costs ~$0.10-0.20/run.
  * Run manually: npm run test:e2e
  */
 
