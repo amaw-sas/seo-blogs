@@ -14,6 +14,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -28,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Globe, Loader2, Play, Palette, KeyRound, Check, X } from "lucide-react";
+import { Plus, Pencil, Globe, Loader2, Play, Palette, KeyRound, Rocket, Check, X } from "lucide-react";
 
 interface Site {
   id: string;
@@ -454,6 +455,15 @@ export default function SitesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editSite, setEditSite] = useState<Site | null>(null);
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
+  const [provisionOpen, setProvisionOpen] = useState(false);
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionForm, setProvisionForm] = useState({
+    name: "",
+    domain: "",
+    niche: "",
+    repoName: "",
+    knowledgeBase: "",
+  });
   const [theming, setTheming] = useState<Record<string, boolean>>({});
   const [progressSite, setProgressSite] = useState<{
     id: string;
@@ -510,6 +520,32 @@ export default function SitesPage() {
     }
   }
 
+  async function handleProvision() {
+    const { name, domain, niche, repoName, knowledgeBase } = provisionForm;
+    if (!name || !domain || !niche || !repoName) return;
+    setProvisioning(true);
+    try {
+      const res = await fetch("/api/sites/provision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, domain, niche, repoName, knowledgeBase, skipTheme: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error ?? "Error al provisionar");
+        return;
+      }
+      alert(`Blog provisionado: ${data.provisioning.deployUrl}`);
+      setProvisionOpen(false);
+      setProvisionForm({ name: "", domain: "", niche: "", repoName: "", knowledgeBase: "" });
+      fetchSites();
+    } catch {
+      alert("Error de conexión");
+    } finally {
+      setProvisioning(false);
+    }
+  }
+
   async function handleTheme(siteId: string) {
     setTheming((prev) => ({ ...prev, [siteId]: true }));
     try {
@@ -556,10 +592,16 @@ export default function SitesPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Sitios</h2>
-        <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-          <Plus className="size-4" />
-          Nuevo sitio
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => setProvisionOpen(true)}>
+            <Rocket className="size-4" />
+            Provisionar blog
+          </Button>
+          <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            Nuevo sitio
+          </Button>
+        </div>
       </div>
 
       {sites.length === 0 ? (
@@ -695,6 +737,84 @@ export default function SitesPage() {
           description={`Configuración de ${editSite.domain}`}
         />
       )}
+
+      {/* Provision blog dialog */}
+      <Dialog open={provisionOpen} onOpenChange={setProvisionOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Provisionar nuevo blog</DialogTitle>
+            <DialogDescription>
+              Crea automáticamente: repo GitHub + proyecto Vercel + deploy + API key.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Nombre del blog</Label>
+                <Input
+                  placeholder="Alquila Tu Carro"
+                  value={provisionForm.name}
+                  onChange={(e) => setProvisionForm((f) => ({ ...f, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Dominio</Label>
+                <Input
+                  placeholder="alquilatucarro.com"
+                  value={provisionForm.domain}
+                  onChange={(e) => setProvisionForm((f) => ({ ...f, domain: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Nicho</Label>
+                <Input
+                  placeholder="alquiler de carros en Bogotá"
+                  value={provisionForm.niche}
+                  onChange={(e) => setProvisionForm((f) => ({ ...f, niche: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nombre del repo</Label>
+                <Input
+                  placeholder="blog-alquilatucarro"
+                  value={provisionForm.repoName}
+                  onChange={(e) => setProvisionForm((f) => ({ ...f, repoName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Base de conocimiento (opcional)</Label>
+              <Textarea
+                placeholder="Información del negocio para generar contenido específico..."
+                value={provisionForm.knowledgeBase}
+                onChange={(e) => setProvisionForm((f) => ({ ...f, knowledgeBase: e.target.value }))}
+                rows={3}
+                className="resize-y"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleProvision}
+              disabled={provisioning || !provisionForm.name || !provisionForm.domain || !provisionForm.niche || !provisionForm.repoName}
+            >
+              {provisioning ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Provisionando...
+                </>
+              ) : (
+                <>
+                  <Rocket className="mr-2 size-4" />
+                  Provisionar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {progressSite && (
         <PipelineProgressDialog
