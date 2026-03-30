@@ -4,7 +4,12 @@ import { expandKeyword, ExpandedKeyword } from "@/lib/ai/keyword-expander";
 
 export async function POST(request: NextRequest) {
   try {
-    const { keywordIds, siteId } = await request.json();
+    const { keywordIds, siteId, dryRun, maxPerSeed } = await request.json() as {
+      keywordIds?: string[];
+      siteId?: string;
+      dryRun?: boolean;
+      maxPerSeed?: number;
+    };
 
     if (!siteId || !Array.isArray(keywordIds) || keywordIds.length === 0) {
       return NextResponse.json(
@@ -49,16 +54,26 @@ export async function POST(request: NextRequest) {
     // Expand each seed keyword
     const allExpanded: Array<ExpandedKeyword & { parentId: string }> = [];
 
+    const limit = maxPerSeed && maxPerSeed > 0 ? maxPerSeed : undefined;
+
     for (const seed of seedKeywords) {
       const expanded = await expandKeyword(seed.phrase, siteContext);
-      for (const kw of expanded) {
+      const limited = limit ? expanded.slice(0, limit) : expanded;
+      for (const kw of limited) {
         allExpanded.push({ ...kw, parentId: seed.id });
       }
-      // Add newly expanded phrases to context to avoid cross-seed duplicates
-      siteContext.existingKeywords.push(...expanded.map((k) => k.phrase));
+      siteContext.existingKeywords.push(...limited.map((k) => k.phrase));
     }
 
-    // Insert all expanded keywords, skip duplicates
+    // dryRun: return suggestions without inserting
+    if (dryRun) {
+      return NextResponse.json({
+        expanded: seedKeywords.length,
+        created: 0,
+        keywords: allExpanded,
+      });
+    }
+
     const { count } = await prisma.keyword.createMany({
       data: allExpanded.map((kw) => ({
         siteId,

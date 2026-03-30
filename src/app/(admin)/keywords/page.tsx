@@ -38,6 +38,8 @@ import {
   ChevronRight,
   Check,
   X,
+  Plus,
+  RotateCcw,
 } from "lucide-react";
 
 interface Site {
@@ -73,18 +75,34 @@ export default function KeywordsPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(true);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const limit = 20;
 
   const [siteFilter, setSiteFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanding, setExpanding] = useState(false);
   const [expandMessage, setExpandMessage] = useState("");
+
+  // Expand preview dialog
+  const [expandOpen, setExpandOpen] = useState(false);
+  const [expandCount, setExpandCount] = useState(5);
+  const [expandSuggestions, setExpandSuggestions] = useState<Array<{ phrase: string; priority: number; parentId: string; checked: boolean }>>([]);
+  const [expandLoading, setExpandLoading] = useState(false);
+  const [expandSaving, setExpandSaving] = useState(false);
+  const [expandSiteId, setExpandSiteId] = useState("");
+
+  // Add keyword dialog
+  const [addOpen, setAddOpen] = useState(false);
+  const [addSiteId, setAddSiteId] = useState("");
+  const [addPhrase, setAddPhrase] = useState("");
+  const [addPriority, setAddPriority] = useState(0);
+  const [addSaving, setAddSaving] = useState(false);
+  const [addMessage, setAddMessage] = useState("");
 
   const fetchKeywords = useCallback(async () => {
     setLoading(true);
@@ -104,7 +122,7 @@ export default function KeywordsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, siteFilter, statusFilter]);
+  }, [page, limit, siteFilter, statusFilter]);
 
   useEffect(() => {
     fetch("/api/sites")
@@ -149,10 +167,9 @@ export default function KeywordsPage() {
     }
   }
 
-  async function handleExpand() {
+  function handleExpandClick() {
     if (selected.size === 0) return;
 
-    // Determine siteId from selected keywords
     const selectedKeywords = keywords.filter((k) => selected.has(k.id));
     const siteIds = new Set(selectedKeywords.map((k) => {
       const site = sites.find((s) => s.name === k.site.name && s.domain === k.site.domain);
@@ -164,31 +181,83 @@ export default function KeywordsPage() {
       return;
     }
 
-    const siteId = [...siteIds][0]!;
-    setExpanding(true);
+    setExpandSiteId([...siteIds][0]!);
+    setExpandSuggestions([]);
     setExpandMessage("");
+    setExpandOpen(true);
+  }
 
+  async function handleExpandGenerate() {
+    setExpandLoading(true);
+    setExpandMessage("");
     try {
       const res = await fetch("/api/keywords/expand", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keywordIds: [...selected], siteId }),
+        body: JSON.stringify({
+          keywordIds: [...selected],
+          siteId: expandSiteId,
+          dryRun: true,
+          maxPerSeed: expandCount,
+        }),
       });
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Error al expandir");
+        throw new Error(err.error || "Error al generar sugerencias");
       }
 
       const data = await res.json();
-      setExpandMessage(`${data.created} keywords creadas a partir de ${data.expanded} semillas`);
+      const suggestions = (data.keywords ?? []).map((kw: { phrase: string; priority: number; parentId: string }) => ({
+        ...kw,
+        checked: true,
+      }));
+      setExpandSuggestions(suggestions);
+    } catch (err) {
+      setExpandMessage(err instanceof Error ? err.message : "Error al generar sugerencias");
+    } finally {
+      setExpandLoading(false);
+    }
+  }
+
+  async function handleExpandSave() {
+    const toCreate = expandSuggestions.filter((s) => s.checked);
+    if (toCreate.length === 0) return;
+
+    setExpandSaving(true);
+    try {
+      const res = await fetch("/api/keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          toCreate.map((kw) => ({
+            siteId: expandSiteId,
+            phrase: kw.phrase,
+            priority: kw.priority,
+            parentId: kw.parentId,
+          }))
+        ),
+      });
+
+      if (!res.ok) throw new Error("Error al crear keywords");
+      const data = await res.json();
+
+      setExpandMessage(`${data.created} keywords creadas`);
       setSelected(new Set());
+      setExpandOpen(false);
+      setExpandSuggestions([]);
       fetchKeywords();
     } catch (err) {
-      setExpandMessage(err instanceof Error ? err.message : "Error al expandir keywords");
+      setExpandMessage(err instanceof Error ? err.message : "Error al guardar keywords");
     } finally {
-      setExpanding(false);
+      setExpandSaving(false);
     }
+  }
+
+  function toggleExpandSuggestion(index: number) {
+    setExpandSuggestions((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, checked: !s.checked } : s))
+    );
   }
 
   async function handleUpload() {
@@ -215,6 +284,45 @@ export default function KeywordsPage() {
     }
   }
 
+  async function handleAddKeyword() {
+    if (!addSiteId || !addPhrase.trim()) return;
+
+    setAddSaving(true);
+    setAddMessage("");
+    try {
+      const res = await fetch("/api/keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: addSiteId, phrase: addPhrase.trim(), priority: addPriority }),
+      });
+
+      if (res.status === 409) {
+        setAddMessage("Esta keyword ya existe para este sitio");
+        return;
+      }
+      if (!res.ok) throw new Error("Error al crear keyword");
+
+      setAddMessage("Keyword creada");
+      setAddPhrase("");
+      setAddPriority(0);
+      fetchKeywords();
+    } catch (err) {
+      setAddMessage(err instanceof Error ? err.message : "Error al crear keyword");
+    } finally {
+      setAddSaving(false);
+    }
+  }
+
+  function handleAddOpenChange(open: boolean) {
+    if (!open) {
+      setAddSiteId("");
+      setAddPhrase("");
+      setAddPriority(0);
+      setAddMessage("");
+    }
+    setAddOpen(open);
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   return (
@@ -222,6 +330,83 @@ export default function KeywordsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Keywords</h2>
         <div className="flex items-center gap-2">
+          {/* Agregar keyword manual */}
+          <Dialog open={addOpen} onOpenChange={handleAddOpenChange}>
+            <DialogTrigger
+              render={
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Plus className="size-4" />
+                  Agregar
+                </Button>
+              }
+            />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Agregar keyword</DialogTitle>
+                <DialogDescription>
+                  Agrega una palabra clave manualmente a un sitio.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="add-site">Sitio</Label>
+                  <Select value={addSiteId} onValueChange={(v: string | null) => setAddSiteId(v ?? "")}>
+                    <SelectTrigger id="add-site" className="w-full">
+                      <SelectValue placeholder="Seleccionar sitio" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sites.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="add-phrase">Frase</Label>
+                  <Input
+                    id="add-phrase"
+                    placeholder="ej. alquiler de carros en bogotá"
+                    value={addPhrase}
+                    onChange={(e) => setAddPhrase(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="add-priority">Prioridad (0-10)</Label>
+                  <Input
+                    id="add-priority"
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={addPriority}
+                    onChange={(e) => setAddPriority(Math.min(10, Math.max(0, Number(e.target.value))))}
+                  />
+                </div>
+                {addMessage && (
+                  <p className={`text-sm ${addMessage.includes("creada") ? "text-green-600" : "text-red-600"}`}>
+                    {addMessage}
+                  </p>
+                )}
+                <Button
+                  onClick={handleAddKeyword}
+                  disabled={addSaving || !addSiteId || !addPhrase.trim()}
+                  className="w-full"
+                >
+                  {addSaving ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin mr-2" />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Agregar keyword"
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Importar CSV */}
           <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
             <DialogTrigger
               render={
@@ -270,19 +455,21 @@ export default function KeywordsPage() {
             </DialogContent>
           </Dialog>
 
+          {/* Expandir */}
           <Button
             variant="outline"
             size="sm"
             className="gap-2"
-            disabled={selected.size === 0 || expanding}
-            onClick={handleExpand}
+            disabled={selected.size === 0}
+            onClick={handleExpandClick}
           >
-            {expanding ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            {expanding ? "Expandiendo..." : `Expandir${selected.size > 0 ? ` (${selected.size})` : ""}`}
+            <Sparkles className="size-4" />
+            Expandir{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
         </div>
       </div>
 
+      {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
         <Select
           value={siteFilter || "all"}
@@ -314,7 +501,9 @@ export default function KeywordsPage() {
           }}
         >
           <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Todos los estados" />
+            <SelectValue placeholder="Todos los estados">
+              {statusFilter ? statusLabels[statusFilter] ?? statusFilter : "Todos los estados"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
@@ -333,6 +522,7 @@ export default function KeywordsPage() {
         </p>
       )}
 
+      {/* Table */}
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -348,7 +538,9 @@ export default function KeywordsPage() {
               <TableHead>Frase</TableHead>
               <TableHead>Sitio</TableHead>
               <TableHead>Estado</TableHead>
-              <TableHead className="text-right">Prioridad</TableHead>
+              <TableHead className="text-right" title="Mayor número = se usa primero. 0=normal, 1-5=media, 6-10=alta">
+                Prioridad
+              </TableHead>
               <TableHead>Origen</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -401,7 +593,7 @@ export default function KeywordsPage() {
                         {kw.parentId ? "Expandida" : "Manual"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {kw.status === "pending" && (
+                        {kw.status === "pending" ? (
                           <div className="flex items-center justify-end gap-1">
                             <Button
                               variant="ghost"
@@ -422,6 +614,16 @@ export default function KeywordsPage() {
                               <X className="size-4" />
                             </Button>
                           </div>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700"
+                            onClick={() => handleStatusChange(kw.id, "pending")}
+                            title="Reactivar a pendiente"
+                          >
+                            <RotateCcw className="size-4" />
+                          </Button>
                         )}
                       </TableCell>
                     </TableRow>
@@ -431,32 +633,187 @@ export default function KeywordsPage() {
         </Table>
       </div>
 
+      {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
           {total} keyword{total !== 1 ? "s" : ""} en total
         </p>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <span className="text-sm">
-            Página {page} de {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Mostrar:</span>
+            <Select
+              value={String(limit)}
+              onValueChange={(v: string | null) => {
+                if (v) {
+                  setLimit(Number(v));
+                  setPage(1);
+                }
+              }}
+            >
+              <SelectTrigger className="w-[70px] h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10, 20, 50, 100, 200].map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span className="text-sm">
+              Página {page} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
         </div>
       </div>
+
+      {/* Expand preview dialog */}
+      <Dialog open={expandOpen} onOpenChange={(open) => {
+        if (!open) {
+          setExpandSuggestions([]);
+          setExpandMessage("");
+        }
+        setExpandOpen(open);
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Expandir keywords</DialogTitle>
+            <DialogDescription>
+              Genera sugerencias de keywords derivadas y elige cuáles guardar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {expandSuggestions.length === 0 ? (
+              <>
+                <div className="space-y-2">
+                  <Label>Cantidad por semilla</Label>
+                  <Select
+                    value={String(expandCount)}
+                    onValueChange={(v: string | null) => v && setExpandCount(Number(v))}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5 keywords</SelectItem>
+                      <SelectItem value="10">10 keywords</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  onClick={handleExpandGenerate}
+                  disabled={expandLoading}
+                  className="w-full"
+                >
+                  {expandLoading ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin mr-2" />
+                      Generando sugerencias...
+                    </>
+                  ) : (
+                    "Generar sugerencias"
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[40px]">
+                          <input
+                            type="checkbox"
+                            checked={expandSuggestions.every((s) => s.checked)}
+                            onChange={() => {
+                              const allChecked = expandSuggestions.every((s) => s.checked);
+                              setExpandSuggestions((prev) =>
+                                prev.map((s) => ({ ...s, checked: !allChecked }))
+                              );
+                            }}
+                            className="size-4 rounded border-gray-300"
+                          />
+                        </TableHead>
+                        <TableHead>Frase sugerida</TableHead>
+                        <TableHead className="text-right w-[80px]">Prioridad</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {expandSuggestions.map((s, i) => (
+                        <TableRow key={i} className={s.checked ? "" : "opacity-50"}>
+                          <TableCell>
+                            <input
+                              type="checkbox"
+                              checked={s.checked}
+                              onChange={() => toggleExpandSuggestion(i)}
+                              className="size-4 rounded border-gray-300"
+                            />
+                          </TableCell>
+                          <TableCell className="text-sm">{s.phrase}</TableCell>
+                          <TableCell className="text-right text-sm">{s.priority}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {expandSuggestions.filter((s) => s.checked).length} de {expandSuggestions.length} seleccionadas
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setExpandSuggestions([])}
+                    >
+                      Regenerar
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={handleExpandSave}
+                      disabled={expandSaving || expandSuggestions.filter((s) => s.checked).length === 0}
+                    >
+                      {expandSaving ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin mr-2" />
+                          Guardando...
+                        </>
+                      ) : (
+                        `Crear ${expandSuggestions.filter((s) => s.checked).length} keywords`
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {expandMessage && (
+              <p className={`text-sm ${expandMessage.includes("Error") ? "text-red-600" : "text-green-600"}`}>
+                {expandMessage}
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

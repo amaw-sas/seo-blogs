@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     const siteId = searchParams.get("siteId");
     const status = searchParams.get("status") as KeywordStatus | null;
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
-    const limit = Math.min(100, Math.max(1, Number(searchParams.get("limit")) || 20));
+    const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 20));
     const skip = (page - 1) * limit;
 
     const where: Prisma.KeywordWhereInput = {};
