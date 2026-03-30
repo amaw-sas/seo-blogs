@@ -595,3 +595,132 @@ SMTP_PASS=
 
 ### DNS
 - Crear CNAME: `generador.estrategias.us` → `cname.vercel-dns.com`
+
+---
+
+## Auditoría de implementación (2026-03-30)
+
+### Estado general
+
+| Fase | Implementado | Parcial | Pendiente | % |
+|------|-------------|---------|-----------|---|
+| Fase 1 — Core funcional | 12/13 | 1/13 | 0/13 | 96% |
+| Fase 2 — Inteligencia | 15/15 | 0/15 | 0/15 | 100% |
+| Fase 3 — Datos y optimización | 12/13 | 1/13 | 0/13 | 96% |
+| **Total** | **39/41** | **2/41** | **0/41** | **97%** |
+
+---
+
+### Fase 1 — Core funcional (detalle)
+
+| Step | Estado | Notas |
+|------|--------|-------|
+| 1.1 Setup | ✅ Done | Next.js **16.1.6** (plan decía 15), Prisma 6.19, Supabase 2.99, Tailwind 4.2, shadcn 4.0 |
+| 1.2 Schema BD | ✅ Done | **20 tablas** (plan decía 18) — se agregaron ImagePool y SiteHoliday |
+| 1.3 Auth | ✅ Done | Login, logout, reset password con Supabase Auth. Middleware protege rutas admin |
+| 1.4 API CRUD | ✅ Done | **35 archivos** de API routes — cubre posts, keywords, sites, clusters, holidays, regulations, notifications, image-pool, analytics, export |
+| 1.5 Admin UI | ⚠️ Parcial | **12 páginas admin** funcionando. Editor usa textarea HTML, no WYSIWYG completo (TipTap/ProseMirror) — funcional pero no es edición visual rica |
+| 1.6 CSV keywords | ✅ Done | Upload CSV con detección de header, skip duplicados, campo priority opcional |
+| 1.7 Expansión keywords | ✅ Done | `keyword-expander.ts` usa OpenAI para generar 5-10 variaciones long-tail y PAA |
+| 1.8 Pipeline | ✅ Done | 12 pasos: keyword selection → competition analysis → outline → content → images → SEO metadata → links → scoring → retry → save → categorize → auto-link |
+| 1.9 SEO score gate | ✅ Done | `seo-scorer.ts` evalúa 13 criterios, score 0-100, retry si <70 (máx 3 intentos) |
+| 1.10 WordPress connector | ✅ Done | Publish, upload media, update, delete. Retry 3x con backoff (30s, 60s, 120s). Ping sitemap |
+| 1.11 Scheduler | ✅ Done | Horarios aleatorios en ventana configurada, mínimo 2h separación, respeta postsPerDay |
+| 1.12 Log actividad | ✅ Done | PublishLog con eventType, status, costTokens, costImages, metadata JSON |
+| 1.13 Deploy | ✅ Done | Vercel (seo-blogs-tawny.vercel.app) + Railway configurado |
+
+### Fase 2 — Inteligencia (detalle)
+
+| Step | Estado | Notas |
+|------|--------|-------|
+| 2.1 Auto-linking + conversión | ✅ Done | `auto-linker.ts` con linking retroactivo + link de conversión configurable por sitio |
+| 2.2 Content clusters | ✅ Done | Admin page + API. Modelo ContentCluster + ClusterPost con flag isPillar |
+| 2.3 Canibalización | ✅ Done | `similarity-checker.ts` con Jaccard similarity, threshold 0.4, skip con motivo |
+| 2.4 Legibilidad | ✅ Done | Fernandez-Huerta para español en `metrics.ts`, campo readability_score en Post |
+| 2.5 Similitud posts | ✅ Done | `post-similarity.ts` complementa detección de canibalización |
+| 2.6 Auto-categorización | ✅ Done | `auto-categorizer.ts` con tests, integrado en pipeline paso 10 |
+| 2.7 Calendario visual | ✅ Done | `/calendar` con vista mensual, posts programados/publicados/error, festivos |
+| 2.8 Historial versiones | ✅ Done | PostVersion model, snapshot por cada edición |
+| 2.9 Preview post | ✅ Done | `/posts/[id]/preview` con renderizado completo |
+| 2.10 Festivos | ✅ Done | Holiday + SiteHoliday con tipos (national/commercial/lunar/custom), días anticipación |
+| 2.11 Regulaciones | ✅ Done | Regulation model con autoMonitor, validFrom/Until, sourceUrl, datos JSON |
+| 2.12 Sitemap + ping | ✅ Done | `sitemap.ts` genera XML, ping Google post-publish integrado en WordPress connector |
+| 2.13 Dark mode | ✅ Done | `theme-toggle.tsx` con localStorage + CSS class, iconos Sun/Moon |
+| 2.14 Lectura estimada | ✅ Done | `calculateReadingTime()` a 200 WPM para español, campo reading_time_minutes |
+| 2.15 Markdown + llms.txt | ✅ Done | Campo contentMarkdown en Post, endpoint `/api/sites/[id]/llms-txt` |
+
+### Fase 3 — Datos y optimización (detalle)
+
+| Step | Estado | Notas |
+|------|--------|-------|
+| 3.1 GSC integrado | ✅ Done | `gsc-client.ts` + `/api/analytics/gsc` — clicks, impressions, position, CTR |
+| 3.2 Google Trends | ✅ Done | `worker/trends/google-trends.ts` — scores 90 días, dirección rising/falling/stable |
+| 3.3 Competencia | ✅ Done | `competition-analyzer.ts` — analiza top resultados, estructura, gaps, ángulos diferenciadores |
+| 3.4 Impacto histórico | ⚠️ Parcial | Datos disponibles vía GSC + analytics table, pero no hay módulo dedicado de análisis histórico por fecha |
+| 3.5 A/B testing | ✅ Done | SiteAbTest model + `/api/posts/[id]/ab-test` — variantes JSON, CTR por variante, ganador |
+| 3.6 Links rotos | ✅ Done | `worker/monitors/broken-links.ts` — HEAD requests con timeout 10s, procesamiento concurrente |
+| 3.7 Costos y ROI | ✅ Done | `cost-tracker.ts` + `/api/analytics/costs` — costTokens + costImages, ROI estimado |
+| 3.8 Content gap | ✅ Done | `content-gap.ts` + `/api/analytics/content-gaps` — identifica temas no cubiertos |
+| 3.9 Contenido desactualizado | ✅ Done | `worker/monitors/outdated-content.ts` — posts >6 meses con métricas declinantes |
+| 3.10 Reporte semanal | ✅ Done | `worker/reports/weekly-report.ts` — métricas 7 días, envío email/Telegram |
+| 3.11 Notificaciones | ✅ Done | `email.ts` (nodemailer/SMTP) + `telegram.ts`, modelo Notification con canal y estado |
+| 3.12 Exportar CSV/JSON | ✅ Done | `/api/export` — soporta posts, keywords, logs, analytics en CSV o JSON |
+| 3.13 Snippets sociales | ✅ Done | `social-snippets.ts` + `/api/posts/[id]/social-snippets` |
+
+---
+
+### Ajustes realizados vs plan original
+
+#### Cambios en tecnología
+
+| Área | Plan original | Estado actual | Motivo |
+|------|---------------|---------------|--------|
+| Next.js | v15 | v16.1.6 | Upgrade natural durante desarrollo |
+| Imágenes | DALL-E 3 ($0.08/img) | GPT Image 1 Mini ($0.015/img) | DALL-E 3 se depreca mayo 2026, 80% ahorro |
+| Fallback imágenes | Solo DALL-E | 4 niveles: pool → generar → manual → reusar | Resiliencia + ahorro (pool a $0/img) |
+| Freepik Mystic | No estaba en plan | Se agregó y luego se eliminó | Agregado como alternativa, removido por complejidad innecesaria |
+| Tablas BD | 18 planeadas | 20 implementadas | Se agregaron ImagePool y ajustes en relaciones |
+| URL admin | generador.estrategias.us | seo-blogs-tawny.vercel.app | Dominio custom pendiente de configurar DNS |
+
+#### Funcionalidades agregadas (no estaban en el plan)
+
+| Feature | Descripción | Archivos clave |
+|---------|-------------|----------------|
+| **Image Pool** | Sistema de pool de imágenes pre-generadas con 4 niveles de fallback, admin UI para gestión y pre-generación | `src/lib/db/image-pool-queries.ts`, `src/app/api/image-pool/`, `src/app/(admin)/image-pool/` |
+| **Blog provisioning** | Crear y desplegar blogs nuevos desde el admin (GitHub + Vercel) | `src/lib/blog/provisioner.ts`, `src/app/api/sites/provision/` |
+| **Nuxt blog connector** | Conector para blogs Nuxt 4 (además de WordPress) | `worker/connectors/nuxt-blog.ts` |
+| **Theme generator** | Configuración de temas para blogs provisionados | `src/app/api/sites/[id]/theme/` |
+| **Image compressor** | Utilidad standalone de compresión WebP | `worker/utils/image-compressor.ts` |
+
+#### Items parciales pendientes de completar
+
+| Item | Qué falta | Impacto |
+|------|-----------|---------|
+| **1.5 Editor WYSIWYG** | Editor actual es textarea HTML, no edición visual rica (TipTap/ProseMirror) | Bajo — funcional para correcciones, pero la experiencia de edición no es ideal para usuarios no técnicos |
+| **3.4 Impacto histórico** | No hay módulo dedicado que analice qué fechas/festivos generaron más tráfico para optimizar scheduling | Bajo — datos disponibles vía GSC, falta el análisis automatizado |
+
+---
+
+### Costos actualizados
+
+| Servicio | Plan original | Actual |
+|----------|---------------|--------|
+| Railway (worker) | $5/mes | $5/mes |
+| Vercel | $0 | $0 |
+| Supabase | $0 | $0 |
+| Claude API (contenido) | $10-30/mes | $10-30/mes |
+| OpenAI (imágenes) | $5-20/mes (DALL-E 3) | **$0-2.70/mes** (GPT Image 1 Mini + pool) |
+| **Total** | **$22-57/mes** | **$15-38/mes** |
+
+---
+
+### Métricas del codebase
+
+| Métrica | Valor |
+|---------|-------|
+| Archivos TypeScript | ~200 |
+| Modelos Prisma | 20 |
+| API routes | 35 |
+| Admin pages | 12 |
+| Unit tests | 348 (31 test files) |
+| Test coverage target | 70% lines/functions/statements |
