@@ -5,6 +5,7 @@
  */
 
 import { chatCompletion } from "./openai-client";
+import { buildPrompt } from "./prompt-builder";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -23,8 +24,20 @@ export interface CompetitionAnalysis {
  */
 export async function analyzeCompetition(
   keyword: string,
+  siteId?: string,
 ): Promise<CompetitionAnalysis> {
-  const prompt = `Eres un experto en SEO y analisis de contenido competitivo.
+  let prompt: string;
+  let maxTokens = 1500;
+
+  try {
+    const result = await buildPrompt("competition_analysis", siteId ?? null, {
+      keyword,
+    });
+    prompt = result.prompt;
+    maxTokens = result.maxTokens;
+  } catch {
+    // Fallback to hardcoded prompt when DB step not found or disabled
+    prompt = `Eres un experto en SEO y analisis de contenido competitivo.
 
 Analiza la estructura tipica de contenido que ranquea en las primeras posiciones de Google para la keyword: "${keyword}"
 
@@ -42,8 +55,9 @@ Responde SOLO con JSON valido (sin markdown code fences):
   "contentGaps": ["string"],
   "suggestedAngle": "string"
 }`;
+  }
 
-  const text = await chatCompletion(prompt, 1500);
+  const text = await chatCompletion(prompt, maxTokens);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {

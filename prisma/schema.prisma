@@ -40,8 +40,9 @@ model Site {
   publishLogs   PublishLog[]
   analytics     Analytics[]
   abTests       SiteAbTest[]
-  notifications Notification[]
-  imagePool     ImagePool[]
+  notifications     Notification[]
+  imagePool         ImagePool[]
+  pipelineOverrides PipelineStepOverride[]
 
   @@map("sites")
 }
@@ -414,6 +415,51 @@ model SiteAbTest {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@map("site_ab_tests")
+}
+
+// ─── Pipeline Steps ─────────────────────────────────────
+
+model PipelineStep {
+  id                String   @id @default(cuid())
+  stepKey           String   @unique @map("step_key")
+  label             String
+  description       String
+  order             Int
+  active            Boolean  @default(true)
+  hasPrompt         Boolean  @default(true) @map("has_prompt")
+  promptBase        String?  @db.Text @map("prompt_base")
+  promptSections    Json     @default("{}") @map("prompt_sections")
+  extraInstructions String?  @db.Text @map("extra_instructions")
+  responseFormat    String?  @db.Text @map("response_format")
+  model             String   @default("gpt-4.1")
+  maxTokens         Int      @default(2000) @map("max_tokens")
+  temperature       Float?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  overrides PipelineStepOverride[]
+
+  @@index([order])
+  @@map("pipeline_steps")
+}
+
+model PipelineStepOverride {
+  id                String   @id @default(cuid())
+  siteId            String   @map("site_id")
+  stepKey           String   @map("step_key")
+  promptSections    Json?    @map("prompt_sections")
+  extraInstructions String?  @db.Text @map("extra_instructions")
+  temperature       Float?
+  maxTokens         Int?     @map("max_tokens")
+  active            Boolean?
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  site Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  step PipelineStep @relation(fields: [stepKey], references: [stepKey], onDelete: Cascade)
+
+  @@unique([siteId, stepKey])
+  @@map("pipeline_step_overrides")
 }
 
 // ─── Notifications ───────────────────────────────────────────

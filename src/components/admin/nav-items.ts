@@ -9,6 +9,7 @@ import {
   ImageIcon,
   BarChart3,
   Settings,
+  Workflow,
   type LucideIcon,
 } from "lucide-react";
 
@@ -27,6 +28,7 @@ export const navItems: NavItem[] = [
   { title: "Calendario", href: "/calendar", icon: Calendar },
   { title: "Logs", href: "/logs", icon: ScrollText },
   { title: "Image Pool", href: "/image-pool", icon: ImageIcon },
+  { title: "Pipeline", href: "/pipeline", icon: Workflow },
   { title: "Estadísticas", href: "/stats", icon: BarChart3 },
   { title: "Configuración", href: "/settings", icon: Settings },
 ];

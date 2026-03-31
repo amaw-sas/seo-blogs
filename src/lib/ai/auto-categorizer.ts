@@ -4,6 +4,7 @@
  */
 
 import { chatCompletion } from "./openai-client";
+import { buildPrompt } from "./prompt-builder";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -30,6 +31,7 @@ export async function categorizePost(
   title: string,
   keyword: string,
   existingCategories: ExistingCategory[],
+  siteId?: string,
 ): Promise<CategorySuggestion> {
   // If no existing categories, always suggest a new one
   if (existingCategories.length === 0) {
@@ -40,7 +42,20 @@ export async function categorizePost(
     .map((c) => `- ${c.name} (slug: ${c.slug})`)
     .join("\n");
 
-  const prompt = `Eres un experto en SEO y clasificacion de contenido en espanol.
+  let prompt: string;
+  let maxTokens = 200;
+
+  try {
+    const result = await buildPrompt("auto_categorization", siteId ?? null, {
+      title,
+      keyword,
+      categoriesList,
+    });
+    prompt = result.prompt;
+    maxTokens = result.maxTokens;
+  } catch {
+    // Fallback to hardcoded prompt when DB step not found or disabled
+    prompt = `Eres un experto en SEO y clasificacion de contenido en espanol.
 
 Dado el siguiente articulo:
 - Titulo: "${title}"
@@ -62,8 +77,9 @@ Responde SOLO con JSON valido (sin markdown code fences):
   "categoryName": "string",
   "isNew": boolean
 }`;
+  }
 
-  const text = await chatCompletion(prompt, 200);
+  const text = await chatCompletion(prompt, maxTokens);
 
   const jsonMatch = text.match(/\{[\s\S]*\}/);
   if (!jsonMatch) {

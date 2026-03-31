@@ -105,7 +105,7 @@ export async function runPipeline(
   let competitionAnalysis: CompetitionAnalysis | null = null;
   try {
     await logStep(siteId, null, "competition_analysis", "started");
-    competitionAnalysis = await analyzeCompetition(keyword.phrase);
+    competitionAnalysis = await analyzeCompetition(keyword.phrase, siteId);
     await logStep(siteId, null, "competition_analysis", "success", {
       avgWordCount: competitionAnalysis.avgWordCount,
       gaps: competitionAnalysis.contentGaps.length,
@@ -146,12 +146,12 @@ export async function runPipeline(
       await logStep(siteId, null, "outline_generation", "started", {
         attempt: attempts,
       });
-      const outline = await generateOutline(keyword.phrase, siteConfig, competitionAnalysis ?? undefined);
+      const outline = await generateOutline(keyword.phrase, siteConfig, competitionAnalysis ?? undefined, siteId);
       await logStep(siteId, null, "outline_generation", "success");
 
       // Step 3: Generate content
       await logStep(siteId, null, "content_generation", "started");
-      const content = await generateContent(outline, keyword.phrase, siteConfig);
+      const content = await generateContent(outline, keyword.phrase, siteConfig, siteId);
 
       // Enforce minimum word count — reject and retry if too short
       if (content.wordCount < siteConfig.minWords) {
@@ -474,6 +474,7 @@ export async function runPipeline(
       post.title,
       keyword.phrase,
       existingCategories.map((c: { slug: string; name: string }) => ({ slug: c.slug, name: c.name })),
+      siteId,
     );
 
     let categoryId: string;

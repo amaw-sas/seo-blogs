@@ -11,6 +11,7 @@ const PROTECTED_PREFIXES = [
   "/logs",
   "/stats",
   "/settings",
+  "/pipeline",
   "/api",
 ];
 const PUBLIC_API_PREFIXES = ["/api/worker"];
@@ -96,6 +97,7 @@ export const config = {
     "/logs/:path*",
     "/stats/:path*",
     "/settings/:path*",
+    "/pipeline/:path*",
     "/api/:path*",
   ],
 };

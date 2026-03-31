@@ -5,6 +5,7 @@
 
 import TurndownService from "turndown";
 import { chatCompletion } from "./openai-client";
+import { buildPrompt } from "./prompt-builder";
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -60,6 +61,7 @@ export async function generateOutline(
   keyword: string,
   siteConfig: SiteConfig,
   competitionAnalysis?: CompetitionInsights,
+  siteId?: string,
 ): Promise<PostOutline> {
   const competitionContext = competitionAnalysis
     ? `
@@ -74,7 +76,22 @@ Usa esta informacion para crear un outline SUPERIOR a la competencia. Cubre los 
 `
     : "";
 
-  const prompt = `Eres un experto en SEO y redaccion de contenido en espanol.
+  let prompt: string;
+  let maxTokens = 2000;
+  let temperature: number | undefined;
+
+  try {
+    const result = await buildPrompt("outline_generation", siteId ?? null, {
+      keyword,
+      knowledgeBaseBlock: siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : "",
+      competitionContext,
+    });
+    prompt = result.prompt;
+    maxTokens = result.maxTokens;
+    temperature = result.temperature;
+  } catch {
+    // Fallback to hardcoded prompt when DB step not found or disabled
+    prompt = `Eres un experto en SEO y redaccion de contenido en espanol.
 
 Genera un outline detallado para un articulo de blog optimizado para la keyword: "${keyword}"
 ${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : ""}${competitionContext}
@@ -122,8 +139,9 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
   "conclusion": "Titulo de la conclusion",
   "tableOfContents": ["string - lista de todos los H2"]
 }`;
+  }
 
-  const text = await chatCompletion(prompt, 2000, undefined, true);
+  const text = await chatCompletion(prompt, maxTokens, temperature, true);
 
   const outline = JSON.parse(extractJson(text)) as PostOutline;
 
@@ -162,10 +180,37 @@ export async function generateContent(
   outline: PostOutline,
   keyword: string,
   siteConfig: SiteConfig,
+  siteId?: string,
 ): Promise<GeneratedContent> {
   const outlineText = formatOutlineForPrompt(outline);
 
-  const prompt = `Eres un redactor experto en SEO para contenido en espanol. Escribes como un local que conoce el tema de primera mano, no como una enciclopedia.
+  const formatoReglas = siteConfig.platform === "wordpress"
+    ? "- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>."
+    : "- NO uses tablas HTML (<table>) — PROHIBIDO. DEBES incluir al menos 1 lista comparativa <ul> con <strong> en cada <li>. Formato: <ul><li><strong>Opcion A:</strong> detalle</li><li><strong>Opcion B:</strong> detalle</li></ul>. Adapta al tema. Sin lista comparativa = RECHAZADO.";
+  const formatoElemento = siteConfig.platform === "wordpress" ? "tablas" : "listas comparativas";
+
+  let prompt: string;
+  let maxTokens = 16000;
+  let temperature: number | undefined = 0.7;
+
+  try {
+    const result = await buildPrompt("content_generation", siteId ?? null, {
+      keyword,
+      minWords: siteConfig.minWords,
+      maxWords: siteConfig.maxWords,
+      knowledgeBaseBlock: siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO (usa esta informacion para hacer el contenido mas especifico y relevante):\n${siteConfig.knowledgeBase}\n` : "",
+      outline: outlineText,
+      targetMinWords: Math.round(siteConfig.minWords * 1.3),
+      faqCount: outline.faqQuestions.length,
+      formatoReglas,
+      formatoElemento,
+    });
+    prompt = result.prompt;
+    maxTokens = result.maxTokens;
+    temperature = result.temperature;
+  } catch {
+    // Fallback to hardcoded prompt when DB step not found or disabled
+    prompt = `Eres un redactor experto en SEO para contenido en espanol. Escribes como un local que conoce el tema de primera mano, no como una enciclopedia.
 
 Escribe un articulo completo basado en este outline:
 
@@ -194,10 +239,10 @@ ESTILO DE CONTENIDO (patron de posts exitosos):
 - Tono: como un amigo local que te da consejos reales, no como un articulo de enciclopedia
 
 VARIEDAD DE FORMATO (obligatorio para evitar monotonia):
-${siteConfig.platform === "wordpress" ? "- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>." : "- NO uses tablas HTML (<table>) — PROHIBIDO. DEBES incluir al menos 1 lista comparativa <ul> con <strong> en cada <li>. Formato: <ul><li><strong>Opcion A:</strong> detalle</li><li><strong>Opcion B:</strong> detalle</li></ul>. Adapta al tema. Sin lista comparativa = RECHAZADO."}
+${formatoReglas}
 - OBLIGATORIO: Incluir exactamente 1 <blockquote> con una frase destacada (dato clave, consejo memorable o estadistica). Ejemplo: <blockquote>Reservar con 2 semanas de anticipacion puede ahorrarte hasta un 40% en temporada alta.</blockquote>. Si no incluyes blockquote, el articulo sera RECHAZADO.
 - Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
-- Variar estructura entre secciones: parrafos narrativos, ${siteConfig.platform === "wordpress" ? "tablas" : "listas comparativas"}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
+- Variar estructura entre secciones: parrafos narrativos, ${formatoElemento}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
 
 SECCION FAQ:
 - ${outline.faqQuestions.length} preguntas y respuestas detalladas
@@ -239,8 +284,9 @@ Para el HTML:
 - La seccion FAQ usa <section class="faq"> con <details>/<summary>
 - NO incluyas imagenes, se insertaran despues
 - NO incluyas links, se insertaran despues`;
+  }
 
-  const text = await chatCompletion(prompt, 16000, 0.7, true);
+  const text = await chatCompletion(prompt, maxTokens, temperature, true);
 
   const content = JSON.parse(extractJson(text)) as {
     html: string;

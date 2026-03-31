@@ -4,6 +4,10 @@ vi.mock("./openai-client", () => ({
   chatCompletion: vi.fn(),
 }));
 
+vi.mock("./prompt-builder", () => ({
+  buildPrompt: vi.fn().mockRejectedValue(new Error("Not seeded")),
+}));
+
 import { chatCompletion } from "./openai-client";
 import { analyzeCompetition } from "./competition-analyzer";
 
