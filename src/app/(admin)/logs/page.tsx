@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { resolveSiteLabel } from "@/lib/ui/select-helpers";
+import { getEventLabel } from "@/lib/ui/event-labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,7 +163,7 @@ export default function LogsPage() {
             <SelectItem value="all">Todos los tipos</SelectItem>
             {eventTypes.map((t) => (
               <SelectItem key={t} value={t}>
-                {t.replace(/_/g, " ")}
+                {getEventLabel(t)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -239,7 +240,7 @@ export default function LogsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-medium text-sm">
-                            {log.eventType.replace(/_/g, " ")}
+                            {getEventLabel(log.eventType)}
                           </span>
                           <Badge
                             variant="secondary"

@@ -225,14 +225,34 @@ export default function PostsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        {post.seoScore != null ? post.seoScore : "—"}
+                        {post.seoScore != null ? (
+                          <span
+                            className={`inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-medium ${
+                              post.seoScore >= 80
+                                ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+                                : post.seoScore >= 60
+                                  ? "bg-yellow-50 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300"
+                                  : "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300"
+                            }`}
+                          >
+                            {post.seoScore}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {post.keywordDensity != null
                           ? `${post.keywordDensity.toFixed(2)}%`
                           : "—"}
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell
+                        className={`text-right ${
+                          post.wordCount != null && post.wordCount < 1500
+                            ? "text-red-600 dark:text-red-400 font-medium"
+                            : ""
+                        }`}
+                      >
                         {post.wordCount ?? "—"}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground whitespace-nowrap">

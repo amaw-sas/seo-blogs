@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   DollarSign,
 } from "lucide-react";
+import { getEventLabel } from "@/lib/ui/event-labels";
 
 interface Post {
   id: string;
@@ -155,7 +156,7 @@ export default function DashboardPage() {
           keywordsPending: kwPendingData.total ?? 0,
           keywordsUsed: kwUsedData.total ?? 0,
           recentErrors: errorLogs.length,
-          estimatedCost: 0,
+          estimatedCost: (monthData.total ?? 0) * 0.09,
         });
       } catch {
         // silently fail — data will show as 0
@@ -187,7 +188,7 @@ export default function DashboardPage() {
           loading={loading}
         />
         <StatCard
-          title="Errores recientes"
+          title="Actividad reciente"
           value={stats.recentErrors}
           description="Últimos 5 eventos"
           icon={AlertTriangle}
@@ -256,7 +257,7 @@ export default function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Errores recientes</CardTitle>
+            <CardTitle className="text-base">Actividad reciente</CardTitle>
             <CardDescription>Últimos eventos del sistema</CardDescription>
           </CardHeader>
           <CardContent>
@@ -284,7 +285,7 @@ export default function DashboardPage() {
                   {logs.map((log) => (
                     <TableRow key={log.id}>
                       <TableCell className="font-medium text-sm">
-                        {log.eventType}
+                        {getEventLabel(log.eventType)}
                       </TableCell>
                       <TableCell>
                         <Badge
