@@ -245,14 +245,12 @@ function SiteFormDialog({
   initial,
   onSave,
   title,
-  description,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initial: SiteForm;
   onSave: (form: SiteForm) => Promise<void>;
   title: string;
-  description: string;
 }) {
   const [form, setForm] = useState<SiteForm>(initial);
   const [saving, setSaving] = useState(false);
@@ -278,41 +276,47 @@ function SiteFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* ── Información básica ── */}
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Información básica</legend>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Nombre</Label>
-                <Input
-                  value={form.name}
-                  onChange={(e) => update("name", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Dominio</Label>
-                <Input
-                  value={form.domain}
-                  onChange={(e) => update("domain", e.target.value)}
-                  required
-                  placeholder="ejemplo.com"
-                />
-              </div>
-            </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Nombre</Label>
+            <Input
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+              required
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Dominio</Label>
+            <Input
+              value={form.domain}
+              onChange={(e) => update("domain", e.target.value)}
+              required
+              placeholder="https://ejemplo.com"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>URL de conversión</Label>
+            <Input
+              value={form.conversionUrl}
+              onChange={(e) => update("conversionUrl", e.target.value)}
+              placeholder="https://ejemplo.com/contacto"
+            />
+            <p className="text-xs text-muted-foreground">
+              Cada post incluirá un link contextual hacia esta URL.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Plataforma</Label>
               <Select
                 value={form.platform}
                 onValueChange={(v: string | null) => update("platform", v ?? "wordpress")}
               >
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -321,19 +325,19 @@ function SiteFormDialog({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-center gap-3 pt-1">
-              <input
-                type="checkbox"
-                id="site-active"
-                checked={form.active}
-                onChange={(e) => update("active", e.target.checked)}
-                className="size-4 rounded border-gray-300"
-              />
-              <Label htmlFor="site-active" className="cursor-pointer">
-                Sitio activo <span className="text-muted-foreground font-normal">— el scheduler genera posts automáticamente</span>
-              </Label>
+            <div className="flex items-end pb-1">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="site-active"
+                  checked={form.active}
+                  onChange={(e) => update("active", e.target.checked)}
+                  className="size-4 rounded border-gray-300"
+                />
+                <Label htmlFor="site-active" className="cursor-pointer">Publicación automática</Label>
+              </div>
             </div>
-          </fieldset>
+          </div>
 
           <hr className="border-border" />
 
@@ -361,17 +365,26 @@ function SiteFormDialog({
                 </div>
                 <div className="space-y-2">
                   <Label>Application Password</Label>
-                  <Input
-                    type="password"
-                    value={form.apiPassword}
-                    onChange={(e) => update("apiPassword", e.target.value)}
-                    placeholder={form.hasApiPassword ? "••••••••••••" : ""}
-                  />
-                  {form.hasApiPassword && !form.apiPassword && (
-                    <p className="text-xs text-muted-foreground">
-                      Contraseña guardada. Dejá vacío para mantenerla o escribí una nueva para reemplazarla.
-                    </p>
-                  )}
+                  <div className="flex gap-1.5">
+                    <Input
+                      type="password"
+                      value={form.apiPassword}
+                      onChange={(e) => update("apiPassword", e.target.value)}
+                      placeholder={form.hasApiPassword ? "••••••••••••" : ""}
+                      className="flex-1"
+                    />
+                    {form.hasApiPassword && !form.apiPassword && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 size-9 text-green-600"
+                        title="Contraseña guardada — dejá vacío para mantenerla o escribí una nueva"
+                      >
+                        <Check className="size-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             ) : (
@@ -381,10 +394,21 @@ function SiteFormDialog({
                   <Input
                     value={form.apiPassword}
                     onChange={(e) => update("apiPassword", e.target.value)}
-                    placeholder={form.hasApiPassword ? "••••••••••••" : "Clave de autenticación para el blog"}
+                    placeholder={form.hasApiPassword ? "••••••••••••" : "Clave de autenticación"}
                     className="flex-1 font-mono text-sm"
                     readOnly={!!form.apiPassword}
                   />
+                  {form.hasApiPassword && !form.apiPassword && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="shrink-0 size-9 text-green-600"
+                      title="Key guardada — dejá vacío para mantenerla o escribí una nueva"
+                    >
+                      <Check className="size-4" />
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     variant="outline"
@@ -412,80 +436,58 @@ function SiteFormDialog({
 
           <hr className="border-border" />
 
-          {/* ── Publicación ── */}
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Publicación</legend>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Posts por día</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={form.postsPerDay}
-                  onChange={(e) => update("postsPerDay", Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora inicio</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={form.windowStart}
-                  onChange={(e) => update("windowStart", Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hora fin</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={23}
-                  value={form.windowEnd}
-                  onChange={(e) => update("windowEnd", Number(e.target.value))}
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Mín. palabras</Label>
-                <Input
-                  type="number"
-                  min={500}
-                  value={form.minWords}
-                  onChange={(e) => update("minWords", Number(e.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Máx. palabras</Label>
-                <Input
-                  type="number"
-                  min={500}
-                  value={form.maxWords}
-                  onChange={(e) => update("maxWords", Number(e.target.value))}
-                />
-              </div>
-            </div>
-          </fieldset>
-
-          <hr className="border-border" />
-
-          {/* ── Contenido ── */}
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contenido</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
-              <Label>URL de conversión</Label>
+              <Label>Posts por día</Label>
               <Input
-                value={form.conversionUrl}
-                onChange={(e) => update("conversionUrl", e.target.value)}
-                placeholder="https://ejemplo.com/contacto"
+                type="number"
+                min={1}
+                max={10}
+                value={form.postsPerDay}
+                onChange={(e) => update("postsPerDay", Number(e.target.value))}
               />
-              <p className="text-xs text-muted-foreground">
-                Cada post incluirá un link contextual hacia esta URL.
-              </p>
             </div>
-          </fieldset>
+            <div className="space-y-2">
+              <Label>Hora inicio</Label>
+              <Input
+                type="number"
+                min={0}
+                max={23}
+                value={form.windowStart}
+                onChange={(e) => update("windowStart", Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Hora fin</Label>
+              <Input
+                type="number"
+                min={0}
+                max={23}
+                value={form.windowEnd}
+                onChange={(e) => update("windowEnd", Number(e.target.value))}
+              />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Mín. palabras</Label>
+              <Input
+                type="number"
+                min={500}
+                value={form.minWords}
+                onChange={(e) => update("minWords", Number(e.target.value))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Máx. palabras</Label>
+              <Input
+                type="number"
+                min={500}
+                value={form.maxWords}
+                onChange={(e) => update("maxWords", Number(e.target.value))}
+              />
+            </div>
+          </div>
 
           <Button type="submit" className="w-full" disabled={saving}>
             {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
@@ -682,7 +684,6 @@ export default function SitesPage() {
         initial={defaultSiteForm}
         onSave={handleCreate}
         title="Nuevo sitio"
-        description="Configura un nuevo sitio para publicación automática"
       />
 
       {editSite && (
@@ -707,7 +708,6 @@ export default function SitesPage() {
           }}
           onSave={handleEdit}
           title="Editar sitio"
-          description={`Configuración de ${editSite.domain}`}
         />
       )}
 
