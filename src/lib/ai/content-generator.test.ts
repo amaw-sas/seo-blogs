@@ -175,7 +175,6 @@ describe("generateContent", () => {
 
   const validContent = {
     html: "<article><h1>Title</h1><p>Word one two three four five</p></article>",
-    markdown: "# Title\nWord one two three four five",
     metaDescription: "Descubre los mejores zapatos para correr en 2025. Guia completa con precios.",
     faqItems: [{ question: "Q?", answer: "A." }],
   };
@@ -186,7 +185,7 @@ describe("generateContent", () => {
     const result = await generateContent(validOutline, "zapatos", siteConfig);
 
     expect(result.html).toContain("<article>");
-    expect(result.markdown).toContain("# Title");
+    expect(result.markdown).toBeTruthy();
     expect(result.wordCount).toBeGreaterThan(0);
     expect(result.faqItems).toHaveLength(1);
   });
@@ -194,7 +193,6 @@ describe("generateContent", () => {
   it("calculates wordCount by stripping HTML tags", async () => {
     const content = {
       html: "<p>one</p><p>two three</p>",
-      markdown: "one\ntwo three",
       faqItems: [],
     };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(content));
@@ -204,15 +202,15 @@ describe("generateContent", () => {
   });
 
   it("throws when html is missing", async () => {
-    mockChatCompletion.mockResolvedValueOnce(JSON.stringify({ markdown: "x", faqItems: [] }));
+    mockChatCompletion.mockResolvedValueOnce(JSON.stringify({ faqItems: [] }));
 
     await expect(generateContent(validOutline, "kw", siteConfig)).rejects.toThrow(
-      "missing html or markdown",
+      "missing html",
     );
   });
 
   it("defaults faqItems to empty array when missing", async () => {
-    const content = { html: "<p>x</p>", markdown: "x" };
+    const content = { html: "<p>x</p>" };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(content));
 
     const result = await generateContent(validOutline, "kw", siteConfig);
@@ -227,7 +225,7 @@ describe("generateContent", () => {
   });
 
   it("defaults metaDescription to empty string when missing", async () => {
-    const content = { html: "<p>x</p>", markdown: "x" };
+    const content = { html: "<p>x</p>" };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(content));
 
     const result = await generateContent(validOutline, "kw", siteConfig);
@@ -248,7 +246,6 @@ describe("generateContent", () => {
   it("injects Conclusion H2 when content lacks one", async () => {
     const noConclusion = {
       html: "<article><h1>Title</h1><p>Intro paragraph with enough words to be substantial for the test to work properly here.</p></article>",
-      markdown: "# Title\nIntro paragraph",
       faqItems: [],
     };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(noConclusion));
@@ -260,7 +257,6 @@ describe("generateContent", () => {
   it("does not inject Conclusion when one already exists", async () => {
     const withConclusion = {
       html: '<article><h1>Title</h1><h2 id="conclusion">Conclusión</h2><p>Final thoughts here.</p></article>',
-      markdown: "# Title\n## Conclusión\nFinal thoughts",
       faqItems: [],
     };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(withConclusion));
@@ -273,7 +269,6 @@ describe("generateContent", () => {
   it("adds Preguntas Frecuentes heading when LLM generates details without H2", async () => {
     const faqNoHeading = {
       html: '<article><h1>T</h1><p>Content</p><section class="faq"><details><summary><strong>Q?</strong></summary><p>A.</p></details></section></article>',
-      markdown: "# T\nContent",
       faqItems: [{ question: "Q?", answer: "A." }],
     };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(faqNoHeading));
@@ -286,7 +281,6 @@ describe("generateContent", () => {
   it("normalizes FAQ H2 to Preguntas Frecuentes when LLM writes FAQ heading", async () => {
     const faqEnglishHeading = {
       html: '<article><h1>T</h1><p>Content</p><h2 id="faq">FAQ</h2><section class="faq"><details><summary>Q?</summary><p>A.</p></details></section></article>',
-      markdown: "# T\nContent",
       faqItems: [{ question: "Q?", answer: "A." }],
     };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(faqEnglishHeading));
@@ -299,7 +293,6 @@ describe("generateContent", () => {
   it("injects FAQ with bold questions when faqItems exist but no details tags", async () => {
     const withFaq = {
       html: '<article><h1>T</h1><h2>Preguntas frecuentes</h2><p>Some FAQ text</p></article>',
-      markdown: "# T",
       faqItems: [{ question: "¿Qué es?", answer: "Es algo." }],
     };
     mockChatCompletion.mockResolvedValueOnce(JSON.stringify(withFaq));

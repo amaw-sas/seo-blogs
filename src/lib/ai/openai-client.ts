@@ -5,7 +5,7 @@
 
 import OpenAI from "openai";
 
-const MODEL = "gpt-4o";
+const MODEL = "gpt-4.1";
 
 let _client: OpenAI | null = null;
 

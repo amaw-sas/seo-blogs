@@ -3,7 +3,14 @@
  * Generates SEO-optimized blog post outlines and full content in Spanish.
  */
 
+import TurndownService from "turndown";
 import { chatCompletion } from "./openai-client";
+
+const turndown = new TurndownService({
+  headingStyle: "atx",
+  bulletListMarker: "-",
+  codeBlockStyle: "fenced",
+});
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -219,7 +226,6 @@ OBLIGATORIO:
 Estructura de la respuesta — responde SOLO con JSON valido (sin markdown code fences):
 {
   "html": "<article>...contenido HTML completo con tags semanticos (h1, h2, h3, p, ul, ol, strong, em, table, thead, tbody, tr, th, td, blockquote)...</article>",
-  "markdown": "# ...contenido en Markdown...",
   "metaDescription": "string (120-155 chars, DEBE incluir la keyword exacta '${keyword}', con CTA implicito)",
   "faqItems": [
     { "question": "string", "answer": "string" }
@@ -238,13 +244,12 @@ Para el HTML:
 
   const content = JSON.parse(extractJson(text)) as {
     html: string;
-    markdown: string;
     metaDescription?: string;
     faqItems: { question: string; answer: string }[];
   };
 
-  if (!content.html || !content.markdown) {
-    throw new Error("Generated content is missing html or markdown");
+  if (!content.html) {
+    throw new Error("Generated content is missing html");
   }
 
   const wordCount = content.html
@@ -384,7 +389,7 @@ Para el HTML:
 
   return {
     html,
-    markdown: content.markdown,
+    markdown: turndown.turndown(html),
     wordCount,
     metaDescription: content.metaDescription ?? "",
     faqItems,
