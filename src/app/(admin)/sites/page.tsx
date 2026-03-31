@@ -456,6 +456,7 @@ export default function SitesPage() {
   const [editSite, setEditSite] = useState<Site | null>(null);
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<Site | null>(null);
+  const [deleteInput, setDeleteInput] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
@@ -842,24 +843,31 @@ export default function SitesPage() {
       </Dialog>
 
       {/* Delete confirmation */}
-      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) { setDeleteConfirm(null); setDeleteInput(""); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar sitio</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que quieres eliminar <strong>{deleteConfirm?.name}</strong> ({deleteConfirm?.domain})?
-              Esto eliminará también todas sus keywords, posts, logs e imágenes del pool.
+              Esto eliminará <strong>{deleteConfirm?.name}</strong> ({deleteConfirm?.domain}) y todas sus keywords, posts, logs e imágenes del pool.
               Esta acción no se puede deshacer.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2">
+            <Label>Escribe <strong>{deleteConfirm?.name}</strong> para confirmar</Label>
+            <Input
+              value={deleteInput}
+              onChange={(e) => setDeleteInput(e.target.value)}
+              placeholder={deleteConfirm?.name ?? ""}
+            />
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirm(null)} disabled={deleting}>
+            <Button variant="outline" onClick={() => { setDeleteConfirm(null); setDeleteInput(""); }} disabled={deleting}>
               Cancelar
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirm && handleDelete(deleteConfirm.id)}
-              disabled={deleting}
+              disabled={deleting || deleteInput !== deleteConfirm?.name}
             >
               {deleting ? (
                 <>
