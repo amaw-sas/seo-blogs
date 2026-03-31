@@ -43,6 +43,7 @@ import {
   ArrowUp,
   ArrowDown,
   ArrowUpDown,
+  Trash2,
 } from "lucide-react";
 
 interface Site {
@@ -62,8 +63,8 @@ interface Keyword {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  used: "bg-green-100 text-green-800",
+  pending: "bg-green-100 text-green-800",
+  used: "bg-gray-100 text-gray-800",
   skipped: "bg-gray-100 text-gray-800",
 };
 
@@ -143,6 +144,28 @@ export default function KeywordsPage() {
   useEffect(() => {
     fetchKeywords();
   }, [fetchKeywords]);
+
+  async function handleDelete(id: string) {
+    try {
+      await fetch(`/api/keywords/${id}`, { method: "DELETE" });
+      setKeywords((prev) => prev.filter((k) => k.id !== id));
+      setTotal((t) => t - 1);
+      setSelected((prev) => { const next = new Set(prev); next.delete(id); return next; });
+    } catch {
+      // ignore
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!confirm(`¿Eliminar ${selected.size} keyword${selected.size !== 1 ? "s" : ""}?`)) return;
+
+    for (const id of selected) {
+      await fetch(`/api/keywords/${id}`, { method: "DELETE" });
+    }
+    setSelected(new Set());
+    fetchKeywords();
+  }
 
   async function handleStatusChange(id: string, newStatus: string) {
     try {
@@ -505,6 +528,19 @@ export default function KeywordsPage() {
             <Sparkles className="size-4" />
             Expandir{selected.size > 0 ? ` (${selected.size})` : ""}
           </Button>
+
+          {/* Eliminar en lote */}
+          {selected.size > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 text-red-600 hover:text-red-700"
+              onClick={handleBulkDelete}
+            >
+              <Trash2 className="size-4" />
+              Eliminar ({selected.size})
+            </Button>
+          )}
         </div>
       </div>
 
@@ -632,38 +668,38 @@ export default function KeywordsPage() {
                         {kw.parentId ? "Expandida" : "Manual"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {kw.status === "pending" ? (
-                          <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1">
+                          {kw.status === "pending" ? (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
+                              className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
                               onClick={() => handleStatusChange(kw.id, "used")}
                               title="Marcar como usada"
                             >
                               <Check className="size-4" />
                             </Button>
+                          ) : (
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-7 w-7 p-0 text-gray-500 hover:text-gray-700"
-                              onClick={() => handleStatusChange(kw.id, "skipped")}
-                              title="Omitir"
+                              className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700"
+                              onClick={() => handleStatusChange(kw.id, "pending")}
+                              title="Reactivar a disponible"
                             >
-                              <X className="size-4" />
+                              <RotateCcw className="size-4" />
                             </Button>
-                          </div>
-                        ) : (
+                          )}
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700"
-                            onClick={() => handleStatusChange(kw.id, "pending")}
-                            title="Reactivar a pendiente"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600"
+                            onClick={() => handleDelete(kw.id)}
+                            title="Eliminar"
                           >
-                            <RotateCcw className="size-4" />
+                            <Trash2 className="size-4" />
                           </Button>
-                        )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
