@@ -25,6 +25,7 @@ export async function chatCompletion(
   prompt: string,
   maxTokens: number,
   temperature?: number,
+  jsonMode?: boolean,
 ): Promise<string> {
   const client = getOpenAIClient();
   const response = await client.chat.completions.create({
@@ -32,6 +33,7 @@ export async function chatCompletion(
     max_tokens: maxTokens,
     temperature,
     messages: [{ role: "user", content: prompt }],
+    ...(jsonMode && { response_format: { type: "json_object" } }),
   });
   return response.choices[0]?.message?.content ?? "";
 }

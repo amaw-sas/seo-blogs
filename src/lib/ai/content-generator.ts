@@ -116,7 +116,7 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
   "tableOfContents": ["string - lista de todos los H2"]
 }`;
 
-  const text = await chatCompletion(prompt, 2000);
+  const text = await chatCompletion(prompt, 2000, undefined, true);
 
   const outline = JSON.parse(extractJson(text)) as PostOutline;
 
@@ -234,7 +234,7 @@ Para el HTML:
 - NO incluyas imagenes, se insertaran despues
 - NO incluyas links, se insertaran despues`;
 
-  const text = await chatCompletion(prompt, 16000, 0.7);
+  const text = await chatCompletion(prompt, 16000, 0.7, true);
 
   const content = JSON.parse(extractJson(text)) as {
     html: string;

@@ -40,6 +40,9 @@ import {
   X,
   Plus,
   RotateCcw,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
 } from "lucide-react";
 
 interface Site {
@@ -65,7 +68,7 @@ const statusColors: Record<string, string> = {
 };
 
 const statusLabels: Record<string, string> = {
-  pending: "Pendiente",
+  pending: "Disponible",
   used: "Usada",
   skipped: "Omitida",
 };
@@ -84,6 +87,8 @@ export default function KeywordsPage() {
 
   const [siteFilter, setSiteFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [sortField, setSortField] = useState("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [expanding, setExpanding] = useState(false);
   const [expandMessage, setExpandMessage] = useState("");
@@ -112,6 +117,10 @@ export default function KeywordsPage() {
       params.set("limit", String(limit));
       if (siteFilter) params.set("siteId", siteFilter);
       if (statusFilter) params.set("status", statusFilter);
+      if (sortField) {
+        params.set("sortField", sortField);
+        params.set("sortDir", sortDir);
+      }
 
       const res = await fetch(`/api/keywords?${params}`);
       const data = await res.json();
@@ -122,7 +131,7 @@ export default function KeywordsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, siteFilter, statusFilter]);
+  }, [page, limit, siteFilter, statusFilter, sortField, sortDir]);
 
   useEffect(() => {
     fetch("/api/sites")
@@ -305,7 +314,9 @@ export default function KeywordsPage() {
       setAddMessage("Keyword creada");
       setAddPhrase("");
       setAddPriority(0);
-      fetchKeywords();
+      setSiteFilter(addSiteId);
+      setStatusFilter("pending");
+      setPage(1);
     } catch (err) {
       setAddMessage(err instanceof Error ? err.message : "Error al crear keyword");
     } finally {
@@ -321,6 +332,34 @@ export default function KeywordsPage() {
       setAddMessage("");
     }
     setAddOpen(open);
+  }
+
+  function SortableHead({ field, children, className, title }: { field: string; children: React.ReactNode; className?: string; title?: string }) {
+    const active = sortField === field;
+    return (
+      <TableHead
+        className={`cursor-pointer select-none ${className ?? ""}`}
+        title={title}
+        onClick={() => {
+          if (active) {
+            setSortDir(d => d === "asc" ? "desc" : "asc");
+          } else {
+            setSortField(field);
+            setSortDir("asc");
+          }
+          setPage(1);
+        }}
+      >
+        <div className="flex items-center gap-1">
+          {children}
+          {active ? (
+            sortDir === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" />
+          ) : (
+            <ArrowUpDown className="size-3 text-muted-foreground/50" />
+          )}
+        </div>
+      </TableHead>
+    );
   }
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -535,12 +574,12 @@ export default function KeywordsPage() {
                   className="size-4 rounded border-gray-300"
                 />
               </TableHead>
-              <TableHead>Frase</TableHead>
+              <SortableHead field="phrase">Frase</SortableHead>
               <TableHead>Sitio</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead className="text-right" title="Mayor número = se usa primero. 0=normal, 1-5=media, 6-10=alta">
+              <SortableHead field="status">Estado</SortableHead>
+              <SortableHead field="priority" className="text-right" title="Mayor número = se usa primero. 0=normal, 1-5=media, 6-10=alta">
                 Prioridad
-              </TableHead>
+              </SortableHead>
               <TableHead>Origen</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
@@ -694,7 +733,7 @@ export default function KeywordsPage() {
         }
         setExpandOpen(open);
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Expandir keywords</DialogTitle>
             <DialogDescription>
@@ -768,7 +807,7 @@ export default function KeywordsPage() {
                               className="size-4 rounded border-gray-300"
                             />
                           </TableCell>
-                          <TableCell className="text-sm">{s.phrase}</TableCell>
+                          <TableCell className="text-sm break-words">{s.phrase}</TableCell>
                           <TableCell className="text-right text-sm">{s.priority}</TableCell>
                         </TableRow>
                       ))}

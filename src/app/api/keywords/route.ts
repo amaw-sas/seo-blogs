@@ -11,6 +11,15 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(200, Math.max(1, Number(searchParams.get("limit")) || 20));
     const skip = (page - 1) * limit;
 
+    const sortField = searchParams.get("sortField");
+    const sortDir = searchParams.get("sortDir") === "desc" ? "desc" : "asc";
+    const allowedSortFields = ["phrase", "priority", "status", "createdAt"];
+
+    const orderBy: Prisma.KeywordOrderByWithRelationInput[] =
+      sortField && allowedSortFields.includes(sortField)
+        ? [{ [sortField]: sortDir }]
+        : [{ priority: "desc" }, { createdAt: "desc" }];
+
     const where: Prisma.KeywordWhereInput = {};
     if (siteId) where.siteId = siteId;
     if (status) where.status = status;
@@ -20,7 +29,7 @@ export async function GET(request: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: [{ priority: "desc" }, { createdAt: "desc" }],
+        orderBy,
         include: { site: { select: { name: true, domain: true } } },
       }),
       prisma.keyword.count({ where }),

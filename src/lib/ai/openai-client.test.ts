@@ -50,4 +50,21 @@ describe("chatCompletion", () => {
       expect.objectContaining({ max_tokens: 16000 }),
     );
   });
+
+  it("includes response_format when jsonMode is true", async () => {
+    await chatCompletion("prompt", 2000, undefined, true);
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        response_format: { type: "json_object" },
+      }),
+    );
+  });
+
+  it("omits response_format when jsonMode is false or omitted", async () => {
+    await chatCompletion("prompt", 2000);
+
+    const call = mockCreate.mock.calls[0][0];
+    expect(call).not.toHaveProperty("response_format");
+  });
 });
