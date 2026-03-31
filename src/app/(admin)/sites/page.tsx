@@ -282,35 +282,36 @@ function SiteFormDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-                required
-              />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* ── Información básica ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Información básica</legend>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Nombre</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => update("name", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Dominio</Label>
+                <Input
+                  value={form.domain}
+                  onChange={(e) => update("domain", e.target.value)}
+                  required
+                  placeholder="ejemplo.com"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Dominio</Label>
-              <Input
-                value={form.domain}
-                onChange={(e) => update("domain", e.target.value)}
-                required
-                placeholder="ejemplo.com"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Plataforma</Label>
               <Select
                 value={form.platform}
                 onValueChange={(v: string | null) => update("platform", v ?? "wordpress")}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -319,147 +320,166 @@ function SiteFormDialog({
                 </SelectContent>
               </Select>
             </div>
+          </fieldset>
+
+          <hr className="border-border" />
+
+          {/* ── Conexión API ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Conexión API</legend>
             <div className="space-y-2">
-              <Label>Posts por día</Label>
+              <Label>URL de API</Label>
               <Input
-                type="number"
-                min={1}
-                max={10}
-                value={form.postsPerDay}
-                onChange={(e) => update("postsPerDay", Number(e.target.value))}
+                value={form.apiUrl}
+                onChange={(e) => update("apiUrl", e.target.value)}
+                placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
               />
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label>URL de API</Label>
-            <Input
-              value={form.apiUrl}
-              onChange={(e) => update("apiUrl", e.target.value)}
-              placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
-            />
-          </div>
+            {form.platform === "wordpress" ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Usuario API</Label>
+                  <Input
+                    value={form.apiUser}
+                    onChange={(e) => update("apiUser", e.target.value)}
+                    placeholder="usuario-wordpress"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Application Password</Label>
+                  <Input
+                    type="password"
+                    value={form.apiPassword}
+                    onChange={(e) => update("apiPassword", e.target.value)}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>API Key</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={form.apiPassword}
+                    onChange={(e) => update("apiPassword", e.target.value)}
+                    placeholder="Clave de autenticación para el blog"
+                    className="flex-1 font-mono text-sm"
+                    readOnly={!!form.apiPassword}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 gap-1"
+                    onClick={() => {
+                      const key = crypto.randomUUID();
+                      update("apiPassword", key);
+                      navigator.clipboard.writeText(key);
+                    }}
+                    title="Generar API Key y copiar al portapapeles"
+                  >
+                    <KeyRound className="size-3" />
+                    Generar y copiar
+                  </Button>
+                </div>
+                {form.apiPassword && (
+                  <p className="text-xs text-muted-foreground">
+                    Copia esta key y configúrala en tu blog. No se mostrará de nuevo después de guardar.
+                  </p>
+                )}
+              </div>
+            )}
+          </fieldset>
 
-          {form.platform === "wordpress" ? (
+          <hr className="border-border" />
+
+          {/* ── Publicación ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Publicación</legend>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Posts por día</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={form.postsPerDay}
+                  onChange={(e) => update("postsPerDay", Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora inicio</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={form.windowStart}
+                  onChange={(e) => update("windowStart", Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora fin</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={form.windowEnd}
+                  onChange={(e) => update("windowEnd", Number(e.target.value))}
+                />
+              </div>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Usuario API</Label>
+                <Label>Mín. palabras</Label>
                 <Input
-                  value={form.apiUser}
-                  onChange={(e) => update("apiUser", e.target.value)}
-                  placeholder="usuario-wordpress"
+                  type="number"
+                  min={500}
+                  value={form.minWords}
+                  onChange={(e) => update("minWords", Number(e.target.value))}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Application Password</Label>
+                <Label>Máx. palabras</Label>
                 <Input
-                  type="password"
-                  value={form.apiPassword}
-                  onChange={(e) => update("apiPassword", e.target.value)}
+                  type="number"
+                  min={500}
+                  value={form.maxWords}
+                  onChange={(e) => update("maxWords", Number(e.target.value))}
                 />
               </div>
             </div>
-          ) : (
-            <div className="space-y-2">
-              <Label>API Key</Label>
-              <div className="flex gap-2">
-                <Input
-                  value={form.apiPassword}
-                  onChange={(e) => update("apiPassword", e.target.value)}
-                  placeholder="Clave de autenticación para el blog"
-                  className="flex-1 font-mono text-sm"
-                  readOnly={!!form.apiPassword}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 gap-1"
-                  onClick={() => {
-                    const key = crypto.randomUUID();
-                    update("apiPassword", key);
-                    navigator.clipboard.writeText(key);
-                  }}
-                  title="Generar API Key y copiar al portapapeles"
-                >
-                  <KeyRound className="size-3" />
-                  Generar y copiar
-                </Button>
-              </div>
-              {form.apiPassword && (
-                <p className="text-xs text-muted-foreground">
-                  Copia esta key y configúrala en tu blog. No se mostrará de nuevo después de guardar.
-                </p>
-              )}
-            </div>
-          )}
+          </fieldset>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Mín. palabras</Label>
-              <Input
-                type="number"
-                min={500}
-                value={form.minWords}
-                onChange={(e) => update("minWords", Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Máx. palabras</Label>
-              <Input
-                type="number"
-                min={500}
-                value={form.maxWords}
-                onChange={(e) => update("maxWords", Number(e.target.value))}
-              />
-            </div>
-          </div>
+          <hr className="border-border" />
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          {/* ── Contenido ── */}
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Contenido</legend>
             <div className="space-y-2">
-              <Label>Hora inicio</Label>
+              <Label>URL de conversión</Label>
               <Input
-                type="number"
-                min={0}
-                max={23}
-                value={form.windowStart}
-                onChange={(e) => update("windowStart", Number(e.target.value))}
+                value={form.conversionUrl}
+                onChange={(e) => update("conversionUrl", e.target.value)}
+                placeholder="https://ejemplo.com/contacto"
               />
+              <p className="text-xs text-muted-foreground">
+                Cada post incluirá un link contextual hacia esta URL.
+              </p>
             </div>
             <div className="space-y-2">
-              <Label>Hora fin</Label>
-              <Input
-                type="number"
-                min={0}
-                max={23}
-                value={form.windowEnd}
-                onChange={(e) => update("windowEnd", Number(e.target.value))}
+              <Label>Base de conocimiento</Label>
+              <Textarea
+                value={form.knowledgeBase}
+                onChange={(e) => update("knowledgeBase", e.target.value)}
+                placeholder="Información del negocio: categorías de vehículos, sedes, tarifas, servicios, diferenciadores..."
+                rows={6}
+                className="resize-y"
               />
+              <p className="text-xs text-muted-foreground">
+                Se inyecta en los prompts para hacer el contenido más específico del negocio.
+              </p>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>URL de conversión</Label>
-            <Input
-              value={form.conversionUrl}
-              onChange={(e) => update("conversionUrl", e.target.value)}
-              placeholder="https://ejemplo.com/contacto"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>Base de conocimiento</Label>
-            <Textarea
-              value={form.knowledgeBase}
-              onChange={(e) => update("knowledgeBase", e.target.value)}
-              placeholder="Información del negocio: categorías de vehículos, sedes, tarifas, servicios, diferenciadores..."
-              rows={6}
-              className="resize-y"
-            />
-            <p className="text-xs text-muted-foreground">
-              Se inyecta en los prompts de generación de contenido e imágenes para hacer el contenido más específico.
-            </p>
-          </div>
+          </fieldset>
 
           <Button type="submit" className="w-full" disabled={saving}>
             {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
