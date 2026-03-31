@@ -320,6 +320,18 @@ function SiteFormDialog({
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center gap-3 pt-1">
+              <input
+                type="checkbox"
+                id="site-active"
+                checked={form.active}
+                onChange={(e) => update("active", e.target.checked)}
+                className="size-4 rounded border-gray-300"
+              />
+              <Label htmlFor="site-active" className="cursor-pointer">
+                Sitio activo <span className="text-muted-foreground font-normal">— el scheduler genera posts automáticamente</span>
+              </Label>
+            </div>
           </fieldset>
 
           <hr className="border-border" />
