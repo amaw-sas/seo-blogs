@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { saveToPool } from "@/lib/db/image-pool-queries";
-import { compressToWebP } from "../../../../../worker/utils/image-compressor";
+import { compressHero } from "../../../../../worker/utils/image-compressor";
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
       try {
         const file = files[i];
         const rawBuffer = Buffer.from(await file.arrayBuffer());
-        const compressed = await compressToWebP(rawBuffer, 150);
+        const compressed = await compressHero(rawBuffer);
         const metadata = await sharp(compressed).metadata();
 
         const timestamp = Date.now();

@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 import { saveToPool } from "@/lib/db/image-pool-queries";
 import { generateSingleImage, buildImagePrompt } from "@/lib/ai/image-generator";
-import { compressToWebP } from "../../../../../worker/utils/image-compressor";
+import { compressHero } from "../../../../../worker/utils/image-compressor";
 
 export async function POST(request: NextRequest) {
   try {
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
       try {
         const prompt = buildImagePrompt(keyword.phrase, keyword.phrase, true);
         const rawBuffer = await generateSingleImage(prompt);
-        const compressed = await compressToWebP(rawBuffer, 150);
+        const compressed = await compressHero(rawBuffer);
         const metadata = await sharp(compressed).metadata();
 
         const timestamp = Date.now();

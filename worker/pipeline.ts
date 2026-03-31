@@ -435,6 +435,21 @@ export async function runPipeline(
     },
   });
 
+  // Back-fill image_pool.post_id from "pending" to real post ID
+  if (bestResult.images.length > 0) {
+    try {
+      await prisma.imagePool.updateMany({
+        where: {
+          postId: "pending",
+          url: { in: bestResult.images.map((img) => img.url) },
+        },
+        data: { postId: post.id },
+      });
+    } catch {
+      // Non-fatal: pool linkage failure doesn't block post creation
+    }
+  }
+
   // Mark keyword as used
   await prisma.keyword.update({
     where: { id: keyword.id },

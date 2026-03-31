@@ -216,7 +216,7 @@ model ImagePool {
 
   site     Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
   category Category? @relation(fields: [categoryId], references: [id])
-  post     Post?     @relation(fields: [postId], references: [id])
+  post     Post?     @relation(fields: [postId], references: [id], onDelete: SetNull)
 
   @@index([siteId, source, status])
   @@index([siteId, categoryId, status])

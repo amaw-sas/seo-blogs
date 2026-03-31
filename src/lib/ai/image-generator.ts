@@ -5,7 +5,7 @@
 
 import OpenAI from "openai";
 import sharp from "sharp";
-import { compressToWebP } from "../../../worker/utils/image-compressor";
+import { compressHero, compressContent } from "../../../worker/utils/image-compressor";
 
 export interface GeneratedImage {
   buffer: Buffer;
@@ -39,7 +39,7 @@ export async function generatePostImages(
     const prompt = buildImagePrompt(context, keyword, isHero, knowledgeBase);
 
     const rawBuffer = await generateRawImage(prompt);
-    const compressed = await compressToWebP(rawBuffer, 150);
+    const compressed = isHero ? await compressHero(rawBuffer) : await compressContent(rawBuffer);
     const metadata = await sharp(compressed).metadata();
     const altText = generateAltText("", keyword, isHero, i, context);
 

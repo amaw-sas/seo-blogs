@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/db/prisma";
 import { Prisma } from "@prisma/client";
+import { cleanupPostImages } from "@/lib/db/image-cleanup";
 import { deleteFromWordPress } from "../../../../../worker/connectors/wordpress";
 import { deleteFromNuxtBlog } from "../../../../../worker/connectors/nuxt-blog";
+import { deleteFromCustomBlog } from "../../../../../worker/connectors/custom";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -77,14 +80,22 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
     const post = await prisma.post.findUnique({
       where: { id },
-      include: { site: true },
+      include: { site: true, images: true, imagePool: true },
     });
 
     if (!post) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    // Delete from DB first — reversible state is safer than
+    // Clean up images before deleting the post (best-effort)
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      await cleanupPostImages(post.id, post.images, post.imagePool, supabase, prisma);
+    }
+
+    // Delete from DB — reversible state is safer than
     // irreversible WP delete followed by a potential DB failure
     await prisma.post.delete({ where: { id } });
 
@@ -155,8 +166,40 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
             },
           });
         }
+      } else if (site.platform === "custom" && site.apiUrl) {
+        try {
+          await deleteFromCustomBlog(post.externalPostId, {
+            apiUrl: site.apiUrl,
+            apiUser: site.apiUser ?? undefined,
+            apiPassword: site.apiPassword ?? undefined,
+            domain: site.domain,
+          });
+          externalDeleted = true;
+
+          await prisma.publishLog.create({
+            data: {
+              siteId: site.id,
+              postId: null,
+              eventType: "external_delete",
+              status: "success",
+            },
+          });
+        } catch (err) {
+          externalDeleted = false;
+          externalError = err instanceof Error ? err.message : String(err);
+
+          await prisma.publishLog.create({
+            data: {
+              siteId: site.id,
+              postId: null,
+              eventType: "external_delete",
+              status: "failed",
+              errorMessage: externalError,
+            },
+          });
+        }
       } else {
-        // Platform without connector (e.g. "custom")
+        // Platform without connector
         externalDeleted = false;
 
         await prisma.publishLog.create({

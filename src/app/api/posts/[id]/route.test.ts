@@ -30,6 +30,24 @@ vi.mock("../../../../../worker/connectors/nuxt-blog", () => ({
   deleteFromNuxtBlog: mockDeleteFromNuxtBlog,
 }));
 
+const { mockDeleteFromCustomBlog } = vi.hoisted(() => ({
+  mockDeleteFromCustomBlog: vi.fn(),
+}));
+vi.mock("../../../../../worker/connectors/custom", () => ({
+  deleteFromCustomBlog: mockDeleteFromCustomBlog,
+}));
+
+const { mockCleanupPostImages } = vi.hoisted(() => ({
+  mockCleanupPostImages: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("@/lib/db/image-cleanup", () => ({
+  cleanupPostImages: mockCleanupPostImages,
+}));
+
+vi.mock("@supabase/supabase-js", () => ({
+  createClient: vi.fn().mockReturnValue({ storage: {} }),
+}));
+
 import { DELETE } from "./route";
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -48,6 +66,8 @@ const publishedPost = {
   title: "Test Post",
   externalPostId: "42",
   siteId: "site-1",
+  images: [],
+  imagePool: [],
   site: {
     id: "site-1",
     platform: "wordpress",
@@ -62,6 +82,8 @@ const draftPost = {
   title: "Draft Post",
   externalPostId: null,
   siteId: "site-1",
+  images: [],
+  imagePool: [],
   site: {
     id: "site-1",
     platform: "wordpress",
@@ -76,6 +98,8 @@ const customPlatformPost = {
   title: "Custom Post",
   externalPostId: "99",
   siteId: "site-2",
+  images: [],
+  imagePool: [],
   site: {
     id: "site-2",
     platform: "custom",
@@ -90,6 +114,8 @@ const customPlatformPost = {
 describe("DELETE /api/posts/[id]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-key";
   });
 
   it("deletes post from DB without external call when deleteExternal is absent", async () => {
@@ -215,6 +241,8 @@ describe("DELETE /api/posts/[id]", () => {
       title: "Tipos de Carros",
       externalPostId: "tipos-de-carros",
       siteId: "site-nuxt",
+      images: [],
+      imagePool: [],
       site: {
         id: "site-nuxt",
         platform: "nuxt-blog",
@@ -256,6 +284,8 @@ describe("DELETE /api/posts/[id]", () => {
       title: "Post Fallido",
       externalPostId: "post-fallido",
       siteId: "site-nuxt",
+      images: [],
+      imagePool: [],
       site: {
         id: "site-nuxt",
         platform: "nuxt-blog",

@@ -8,6 +8,7 @@ const mockPrisma = vi.hoisted(() => {
     findMany: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
   });
   return {
     site: createMockModel(),
@@ -15,6 +16,7 @@ const mockPrisma = vi.hoisted(() => {
     keyword: createMockModel(),
     category: createMockModel(),
     publishLog: createMockModel(),
+    imagePool: createMockModel(),
   };
 });
 
@@ -30,6 +32,7 @@ vi.mock("@prisma/client", () => ({
     keyword = mockPrisma.keyword;
     category = mockPrisma.category;
     publishLog = mockPrisma.publishLog;
+    imagePool = mockPrisma.imagePool;
   },
 }));
 
@@ -219,6 +222,9 @@ function setupHappyPath(siteOverrides: Record<string, unknown> = {}) {
   (addConversionLink as Mock).mockReturnValue(
     makeContent().html + '<a href="https://example.com/contacto">CTA</a>',
   );
+
+  // Image pool back-fill
+  mockPrisma.imagePool.updateMany.mockResolvedValue({ count: 0 });
 
   // Pool queries — empty by default so Level 2 (generation) kicks in
   mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
@@ -619,5 +625,52 @@ describe("runPipeline — image pool fallback chain", () => {
     expect(result.postId).toBe(POST_ID);
     const createArgs = mockPrisma.post.create.mock.calls[0][0];
     expect(createArgs.data.images.create).toHaveLength(0);
+  });
+
+  it("S7: back-fills image_pool.postId from 'pending' to real post ID after post creation", async () => {
+    setupHappyPath();
+    const poolUrl1 = "https://example.com/pool-1.webp";
+    const poolUrl2 = "https://example.com/pool-2.webp";
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([
+      makePoolImage({ id: "pool-1", url: poolUrl1 }),
+      makePoolImage({ id: "pool-2", url: poolUrl2 }),
+    ]);
+    mockPrisma.imagePool.updateMany.mockResolvedValue({ count: 2 });
+
+    await runPipeline(SITE_ID);
+
+    expect(mockPrisma.imagePool.updateMany).toHaveBeenCalledWith({
+      where: {
+        postId: "pending",
+        url: { in: expect.arrayContaining([poolUrl1, poolUrl2]) },
+      },
+      data: { postId: POST_ID },
+    });
+  });
+
+  it("S8: skips back-fill when no images were used", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([]);
+    (generatePostImages as Mock).mockRejectedValue(new Error("OpenAI API down"));
+    mockPoolQueries.getManualPoolImages.mockResolvedValue([]);
+    mockPoolQueries.getReusablePoolImages.mockResolvedValue([]);
+
+    await runPipeline(SITE_ID);
+
+    expect(mockPrisma.imagePool.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("S9: back-fill failure is non-fatal — pipeline still completes", async () => {
+    setupHappyPath();
+    mockPoolQueries.getAvailablePoolImages.mockResolvedValue([
+      makePoolImage({ id: "pool-1", url: "https://example.com/pool-1.webp" }),
+      makePoolImage({ id: "pool-2", url: "https://example.com/pool-2.webp" }),
+    ]);
+    mockPrisma.imagePool.updateMany.mockRejectedValue(new Error("DB error"));
+
+    const result = await runPipeline(SITE_ID);
+
+    expect(result.postId).toBe(POST_ID);
+    expect(mockPrisma.imagePool.updateMany).toHaveBeenCalled();
   });
 });
