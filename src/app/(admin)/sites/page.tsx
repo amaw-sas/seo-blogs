@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Globe, Loader2, KeyRound, Check, X, Trash2 } from "lucide-react";
+import { Plus, Pencil, Globe, Loader2, KeyRound, Check, X, Trash2, BookOpen } from "lucide-react";
 
 interface Site {
   id: string;
@@ -232,7 +232,6 @@ const defaultSiteForm = {
   windowStart: 7,
   windowEnd: 12,
   conversionUrl: "",
-  knowledgeBase: "",
   active: true,
 };
 
@@ -478,19 +477,6 @@ function SiteFormDialog({
                 Cada post incluirá un link contextual hacia esta URL.
               </p>
             </div>
-            <div className="space-y-2">
-              <Label>Base de conocimiento</Label>
-              <Textarea
-                value={form.knowledgeBase}
-                onChange={(e) => update("knowledgeBase", e.target.value)}
-                placeholder="Información del negocio: categorías de vehículos, sedes, tarifas, servicios, diferenciadores..."
-                rows={6}
-                className="resize-y"
-              />
-              <p className="text-xs text-muted-foreground">
-                Se inyecta en los prompts para hacer el contenido más específico del negocio.
-              </p>
-            </div>
           </fieldset>
 
           <Button type="submit" className="w-full" disabled={saving}>
@@ -504,6 +490,7 @@ function SiteFormDialog({
 }
 
 export default function SitesPage() {
+  const router = useRouter();
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -657,6 +644,15 @@ export default function SitesPage() {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="w-full gap-2"
+                    onClick={() => router.push(`/sites/${site.id}/knowledge`)}
+                  >
+                    <BookOpen className="size-3" />
+                    Base de conocimiento
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="w-full gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
                     onClick={() => setDeleteConfirm(site)}
                   >
@@ -696,7 +692,6 @@ export default function SitesPage() {
             windowStart: editSite.windowStart,
             windowEnd: editSite.windowEnd,
             conversionUrl: editSite.conversionUrl ?? "",
-            knowledgeBase: editSite.knowledgeBase ?? "",
             active: editSite.active,
           }}
           onSave={handleEdit}
