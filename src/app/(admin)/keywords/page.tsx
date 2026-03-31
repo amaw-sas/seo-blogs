@@ -769,7 +769,7 @@ export default function KeywordsPage() {
         }
         setExpandOpen(open);
       }}>
-        <DialogContent className="max-w-2xl w-[95vw]">
+        <DialogContent className="sm:max-w-2xl w-[95vw]">
           <DialogHeader>
             <DialogTitle>Expandir keywords</DialogTitle>
             <DialogDescription>
@@ -811,8 +811,8 @@ export default function KeywordsPage() {
               </>
             ) : (
               <>
-                <div className="rounded-md border max-h-[300px] overflow-y-auto">
-                  <Table>
+                <div className="rounded-md border max-h-[300px] overflow-y-auto overflow-x-hidden">
+                  <Table className="table-fixed w-full">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[40px]">
