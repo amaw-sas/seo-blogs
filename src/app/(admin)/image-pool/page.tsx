@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { resolveSiteLabel } from "@/lib/ui/select-helpers";
+import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,12 +30,6 @@ import {
 } from "lucide-react";
 import { ImagePoolUpload } from "@/components/admin/image-pool-upload";
 import { ImagePoolGenerate } from "@/components/admin/image-pool-generate";
-
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
 
 interface PoolImage {
   id: string;
@@ -66,15 +60,14 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function ImagePoolPage() {
+  const { siteId: siteFilter, sites } = useSiteContext();
   const [images, setImages] = useState<PoolImage[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
   const [total, setTotal] = useState(0);
   const [stats, setStats] = useState<PoolStats>({ available: 0, used: 0, manual: 0 });
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const limit = 20;
 
-  const [siteFilter, setSiteFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
@@ -102,13 +95,6 @@ export default function ImagePoolPage() {
       setLoading(false);
     }
   }, [page, siteFilter, sourceFilter, statusFilter]);
-
-  useEffect(() => {
-    fetch("/api/sites")
-      .then((r) => r.json())
-      .then((d) => setSites(d.data ?? []))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     fetchImages();
@@ -179,28 +165,6 @@ export default function ImagePoolPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={siteFilter || "all"}
-          onValueChange={(v: string | null) => {
-            setSiteFilter(!v || v === "all" ? "" : v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios">
-              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los sitios</SelectItem>
-            {sites.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Select
           value={sourceFilter || "all"}
           onValueChange={(v: string | null) => {

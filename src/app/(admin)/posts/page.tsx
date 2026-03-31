@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { resolveSiteLabel } from "@/lib/ui/select-helpers";
+import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,12 +25,6 @@ import {
 import { ChevronLeft, ChevronRight, ExternalLink, Trash2 } from "lucide-react";
 import { buildPostUrl } from "@/lib/ui/post-url";
 import { DeletePostDialog } from "@/components/delete-post-dialog";
-
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
 
 interface Post {
   id: string;
@@ -64,14 +58,12 @@ const statusLabels: Record<string, string> = {
 
 export default function PostsPage() {
   const router = useRouter();
+  const { siteId: siteFilter, sites } = useSiteContext();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const limit = 20;
-
-  const [siteFilter, setSiteFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Post | null>(null);
@@ -98,13 +90,6 @@ export default function PostsPage() {
   }, [page, siteFilter, statusFilter, search]);
 
   useEffect(() => {
-    fetch("/api/sites")
-      .then((r) => r.json())
-      .then((d) => setSites(d.data ?? []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
@@ -117,28 +102,6 @@ export default function PostsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={siteFilter || "all"}
-          onValueChange={(v: string | null) => {
-            setSiteFilter(!v || v === "all" ? "" : v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios">
-              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los sitios</SelectItem>
-            {sites.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Select
           value={statusFilter || "all"}
           onValueChange={(v: string | null) => {

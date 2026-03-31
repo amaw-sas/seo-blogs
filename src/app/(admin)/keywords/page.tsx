@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { resolveSiteLabel } from "@/lib/ui/select-helpers";
+import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,12 +46,6 @@ import {
   Trash2,
 } from "lucide-react";
 
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
-
 interface Keyword {
   id: string;
   phrase: string;
@@ -75,8 +69,8 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function KeywordsPage() {
+  const { siteId: siteFilter, sites } = useSiteContext();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(10);
@@ -85,8 +79,6 @@ export default function KeywordsPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const [siteFilter, setSiteFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [sortField, setSortField] = useState("");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -133,13 +125,6 @@ export default function KeywordsPage() {
       setLoading(false);
     }
   }, [page, limit, siteFilter, statusFilter, sortField, sortDir]);
-
-  useEffect(() => {
-    fetch("/api/sites")
-      .then((r) => r.json())
-      .then((d) => setSites(d.data ?? []))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     fetchKeywords();
@@ -337,7 +322,6 @@ export default function KeywordsPage() {
       setAddMessage("Keyword creada");
       setAddPhrase("");
       setAddPriority(0);
-      setSiteFilter(addSiteId);
       setStatusFilter("pending");
       setPage(1);
     } catch (err) {
@@ -546,28 +530,6 @@ export default function KeywordsPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={siteFilter || "all"}
-          onValueChange={(v: string | null) => {
-            setSiteFilter(!v || v === "all" ? "" : v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios">
-              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los sitios</SelectItem>
-            {sites.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Select
           value={statusFilter || "all"}
           onValueChange={(v: string | null) => {

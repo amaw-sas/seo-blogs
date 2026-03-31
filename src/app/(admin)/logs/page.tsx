@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { resolveSiteLabel } from "@/lib/ui/select-helpers";
+import { useSiteContext } from "@/lib/site-context";
 import { getEventLabel } from "@/lib/ui/event-labels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,11 +23,6 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-
-interface Site {
-  id: string;
-  name: string;
-}
 
 interface LogEntry {
   id: string;
@@ -62,15 +57,14 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function LogsPage() {
+  const { siteId: siteFilter } = useSiteContext();
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const limit = 20;
 
-  const [siteFilter, setSiteFilter] = useState("");
   const [eventFilter, setEventFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
@@ -98,13 +92,6 @@ export default function LogsPage() {
   }, [page, siteFilter, eventFilter, statusFilter, dateFilter]);
 
   useEffect(() => {
-    fetch("/api/sites")
-      .then((r) => r.json())
-      .then((d) => setSites(d.data ?? []))
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
 
@@ -127,28 +114,6 @@ export default function LogsPage() {
       <h2 className="text-2xl font-bold tracking-tight">Logs de actividad</h2>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={siteFilter || "all"}
-          onValueChange={(v: string | null) => {
-            setSiteFilter(!v || v === "all" ? "" : v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios">
-              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los sitios</SelectItem>
-            {sites.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
         <Select
           value={eventFilter || "all"}
           onValueChange={(v: string | null) => {

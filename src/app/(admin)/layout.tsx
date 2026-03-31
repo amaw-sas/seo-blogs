@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { LogOut, ChevronDown } from "lucide-react";
 import { navItems } from "@/components/admin/nav-items";
 import { ThemeToggle } from "@/components/admin/theme-toggle";
+import { SiteSelector } from "@/components/admin/site-selector";
+import { SiteProvider } from "@/lib/site-context";
 import {
   Sidebar,
   SidebarContent,
@@ -39,6 +41,7 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   return (
+    <SiteProvider>
     <SidebarProvider>
       <Sidebar collapsible="icon">
         <SidebarHeader>
@@ -124,6 +127,7 @@ export default function AdminLayout({
           <Separator orientation="vertical" className="mr-2 h-4" />
           <h1 className="text-sm font-semibold">SEO Blogs Engine</h1>
           <div className="ml-auto flex items-center gap-2">
+            <SiteSelector />
             <ThemeToggle />
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -149,5 +153,6 @@ export default function AdminLayout({
         <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
       </SidebarInset>
     </SidebarProvider>
+    </SiteProvider>
   );
 }

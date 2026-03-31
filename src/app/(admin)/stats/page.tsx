@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { resolveSiteLabel } from "@/lib/ui/select-helpers";
+import { useSiteContext } from "@/lib/site-context";
 import {
   Card,
   CardContent,
@@ -38,12 +38,6 @@ import {
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────
-
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
 
 interface AnalyticsTotals {
   views: number;
@@ -155,8 +149,9 @@ function StatCard({
 // ── Main Page ────────────────────────────────────────────────
 
 export default function StatsPage() {
-  const [sites, setSites] = useState<Site[]>([]);
-  const [selectedSiteId, setSelectedSiteId] = useState<string>("");
+  const { siteId, sites } = useSiteContext();
+  const [localSiteId, setLocalSiteId] = useState("");
+  const selectedSiteId = siteId || localSiteId;
   const [dateRange, setDateRange] = useState<DateRange>("30d");
 
   const [totals, setTotals] = useState<AnalyticsTotals>({
@@ -174,23 +169,12 @@ export default function StatsPage() {
   const [loadingQueries, setLoadingQueries] = useState(false);
   const [loadingGaps, setLoadingGaps] = useState(false);
 
-  // Fetch sites on mount
+  // Auto-select first site when context has no site selected
   useEffect(() => {
-    async function fetchSites() {
-      try {
-        const res = await fetch("/api/sites");
-        const json = await res.json();
-        const siteList: Site[] = json.data ?? [];
-        setSites(siteList);
-        if (siteList.length > 0 && !selectedSiteId) {
-          setSelectedSiteId(siteList[0].id);
-        }
-      } catch {
-        // silently fail
-      }
+    if (!siteId && !localSiteId && sites.length > 0) {
+      setLocalSiteId(sites[0].id);
     }
-    fetchSites();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [siteId, localSiteId, sites]);
 
   // Fetch analytics when site or date range changes
   const fetchAnalytics = useCallback(async () => {
@@ -290,20 +274,6 @@ export default function StatsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold tracking-tight">Estadisticas</h2>
         <div className="flex items-center gap-3">
-          <Select value={selectedSiteId} onValueChange={(v) => setSelectedSiteId(v ?? "")}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Seleccionar sitio">
-                {resolveSiteLabel(sites, selectedSiteId)}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {sites.map((site) => (
-                <SelectItem key={site.id} value={site.id}>
-                  {site.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
           <Select
             value={dateRange}
             onValueChange={(v) => setDateRange(v as DateRange)}

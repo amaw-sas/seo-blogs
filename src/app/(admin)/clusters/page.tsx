@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSiteContext } from "@/lib/site-context";
 import { resolveSiteLabel } from "@/lib/ui/select-helpers";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,12 +53,6 @@ import {
 
 // ── Types ────────────────────────────────────────────────────
 
-interface Site {
-  id: string;
-  name: string;
-  domain: string;
-}
-
 interface ClusterPost {
   isPillar: boolean;
   post: {
@@ -106,11 +101,10 @@ const statusColors: Record<string, string> = {
 // ── Component ────────────────────────────────────────────────
 
 export default function ClustersPage() {
+  const { siteId: siteFilter, sites } = useSiteContext();
   const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [siteFilter, setSiteFilter] = useState("");
 
   // Help dialog state
   const [helpOpen, setHelpOpen] = useState(false);
@@ -145,13 +139,6 @@ export default function ClustersPage() {
       setLoading(false);
     }
   }, [siteFilter]);
-
-  useEffect(() => {
-    fetch("/api/sites")
-      .then((r) => r.json())
-      .then((d) => setSites(d.data ?? []))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     fetchClusters();
@@ -356,28 +343,6 @@ export default function ClustersPage() {
         </Dialog>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={siteFilter || "all"}
-          onValueChange={(v: string | null) => {
-            setSiteFilter(!v || v === "all" ? "" : v);
-          }}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Todos los sitios">
-              {resolveSiteLabel(sites, siteFilter, "Todos los sitios")}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos los sitios</SelectItem>
-            {sites.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {s.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
