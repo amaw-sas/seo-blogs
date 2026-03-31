@@ -13,7 +13,13 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json({ data: sites });
+    // Never expose passwords — only indicate if one is set
+    const safeSites = sites.map(({ apiPassword, ...rest }) => ({
+      ...rest,
+      hasApiPassword: !!apiPassword,
+    }));
+
+    return NextResponse.json({ data: safeSites });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch sites";
     return NextResponse.json({ error: message }, { status: 500 });

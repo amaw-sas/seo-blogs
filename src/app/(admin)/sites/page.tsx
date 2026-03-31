@@ -39,6 +39,7 @@ interface Site {
   apiUrl: string | null;
   apiUser: string | null;
   apiPassword: string | null;
+  hasApiPassword: boolean;
   postsPerDay: number;
   minWords: number;
   maxWords: number;
@@ -226,6 +227,7 @@ const defaultSiteForm = {
   apiUrl: "",
   apiUser: "",
   apiPassword: "",
+  hasApiPassword: false,
   postsPerDay: 1,
   minWords: 1500,
   maxWords: 2500,
@@ -363,7 +365,13 @@ function SiteFormDialog({
                     type="password"
                     value={form.apiPassword}
                     onChange={(e) => update("apiPassword", e.target.value)}
+                    placeholder={form.hasApiPassword ? "••••••••••••" : ""}
                   />
+                  {form.hasApiPassword && !form.apiPassword && (
+                    <p className="text-xs text-muted-foreground">
+                      Contraseña guardada. Dejá vacío para mantenerla o escribí una nueva para reemplazarla.
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
@@ -373,7 +381,7 @@ function SiteFormDialog({
                   <Input
                     value={form.apiPassword}
                     onChange={(e) => update("apiPassword", e.target.value)}
-                    placeholder="Clave de autenticación para el blog"
+                    placeholder={form.hasApiPassword ? "••••••••••••" : "Clave de autenticación para el blog"}
                     className="flex-1 font-mono text-sm"
                     readOnly={!!form.apiPassword}
                   />
@@ -535,10 +543,11 @@ export default function SitesPage() {
   }
 
   async function handleCreate(form: SiteForm) {
+    const { hasApiPassword, ...payload } = form;
     const res = await fetch("/api/sites", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Error al crear sitio");
     fetchSites();
@@ -547,10 +556,11 @@ export default function SitesPage() {
 
   async function handleEdit(form: SiteForm) {
     if (!editSite) return;
+    const { hasApiPassword, ...payload } = form;
     const res = await fetch(`/api/sites/${editSite.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
     if (!res.ok) throw new Error("Error al actualizar sitio");
     setEditSite(null);
@@ -686,6 +696,7 @@ export default function SitesPage() {
             apiUrl: editSite.apiUrl ?? "",
             apiUser: editSite.apiUser ?? "",
             apiPassword: "",
+            hasApiPassword: editSite.hasApiPassword,
             postsPerDay: editSite.postsPerDay,
             minWords: editSite.minWords,
             maxWords: editSite.maxWords,

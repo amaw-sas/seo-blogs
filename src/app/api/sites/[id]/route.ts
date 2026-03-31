@@ -27,7 +27,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: "Site not found" }, { status: 404 });
     }
 
-    return NextResponse.json(site);
+    // Never expose the actual password — only indicate if one is set
+    const { apiPassword, ...rest } = site;
+    return NextResponse.json({ ...rest, hasApiPassword: !!apiPassword });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to fetch site";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -39,9 +41,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const body = await request.json();
 
+    // Don't overwrite password with empty string
+    const data = { ...body };
+    if (!data.apiPassword) {
+      delete data.apiPassword;
+    }
+
     const site = await prisma.site.update({
       where: { id },
-      data: body,
+      data,
     });
 
     return NextResponse.json(site);
