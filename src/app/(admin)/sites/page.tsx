@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Globe, Loader2, Play, Palette, KeyRound, Rocket, Check, X } from "lucide-react";
+import { Plus, Pencil, Globe, Loader2, Play, Palette, KeyRound, Rocket, Check, X, Trash2 } from "lucide-react";
 
 interface Site {
   id: string;
@@ -455,6 +455,8 @@ export default function SitesPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editSite, setEditSite] = useState<Site | null>(null);
   const [generating, setGenerating] = useState<Record<string, boolean>>({});
+  const [deleteConfirm, setDeleteConfirm] = useState<Site | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [provisioning, setProvisioning] = useState(false);
   const [provisionForm, setProvisionForm] = useState({
@@ -486,6 +488,20 @@ export default function SitesPage() {
   useEffect(() => {
     fetchSites();
   }, []);
+
+  async function handleDelete(siteId: string) {
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/sites/${siteId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Error al eliminar sitio");
+      setDeleteConfirm(null);
+      fetchSites();
+    } catch {
+      // ignore
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   async function handleCreate(form: SiteForm) {
     const res = await fetch("/api/sites", {
@@ -696,6 +712,15 @@ export default function SitesPage() {
                         ? "Sin keywords"
                         : "Generar post"}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => setDeleteConfirm(site)}
+                  >
+                    <Trash2 className="size-3" />
+                    Eliminar sitio
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -810,6 +835,39 @@ export default function SitesPage() {
                   <Rocket className="mr-2 size-4" />
                   Provisionar
                 </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Eliminar sitio</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que quieres eliminar <strong>{deleteConfirm?.name}</strong> ({deleteConfirm?.domain})?
+              Esto eliminará también todas sus keywords, posts, logs e imágenes del pool.
+              Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)} disabled={deleting}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirm && handleDelete(deleteConfirm.id)}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
               )}
             </Button>
           </DialogFooter>
