@@ -336,25 +336,38 @@ function SiteFormDialog({
             <Input
               value={form.apiUrl}
               onChange={(e) => update("apiUrl", e.target.value)}
-              placeholder="https://ejemplo.com/wp-json/wp/v2"
+              placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Usuario API</Label>
-              <Input
-                value={form.apiUser}
-                onChange={(e) => update("apiUser", e.target.value)}
-              />
+          {form.platform === "wordpress" ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Usuario API</Label>
+                <Input
+                  value={form.apiUser}
+                  onChange={(e) => update("apiUser", e.target.value)}
+                  placeholder="usuario-wordpress"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Application Password</Label>
+                <Input
+                  type="password"
+                  value={form.apiPassword}
+                  onChange={(e) => update("apiPassword", e.target.value)}
+                />
+              </div>
             </div>
+          ) : (
             <div className="space-y-2">
-              <Label>Contraseña API</Label>
+              <Label>API Key</Label>
               <div className="flex gap-2">
                 <Input
                   type="password"
                   value={form.apiPassword}
                   onChange={(e) => update("apiPassword", e.target.value)}
+                  placeholder="Clave de autenticación para el blog"
                   className="flex-1"
                 />
                 <Button
@@ -363,14 +376,14 @@ function SiteFormDialog({
                   size="sm"
                   className="shrink-0 gap-1"
                   onClick={() => update("apiPassword", crypto.randomUUID())}
-                  title="Generar API Key"
+                  title="Generar API Key aleatoria"
                 >
                   <KeyRound className="size-3" />
                   Generar
                 </Button>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
