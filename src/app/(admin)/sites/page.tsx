@@ -294,8 +294,12 @@ function SiteFormDialog({
             <Input
               value={form.domain}
               onChange={(e) => update("domain", e.target.value)}
+              onBlur={() => {
+                const cleaned = form.domain.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+                if (cleaned !== form.domain) update("domain", cleaned);
+              }}
               required
-              placeholder="https://ejemplo.com"
+              placeholder="ejemplo.com"
             />
           </div>
           <div className="space-y-2">
@@ -303,6 +307,11 @@ function SiteFormDialog({
             <Input
               value={form.conversionUrl}
               onChange={(e) => update("conversionUrl", e.target.value)}
+              onBlur={() => {
+                let v = form.conversionUrl.trim();
+                if (v && !/^https?:\/\//.test(v)) v = `https://${v}`;
+                if (v !== form.conversionUrl) update("conversionUrl", v);
+              }}
               placeholder="https://ejemplo.com/contacto"
             />
             <p className="text-xs text-muted-foreground">
@@ -341,62 +350,34 @@ function SiteFormDialog({
 
           <hr className="border-border" />
 
-          {/* ── Conexión API ── */}
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Conexión API</legend>
-            <div className="space-y-2">
-              <Label>URL de API</Label>
-              <Input
-                value={form.apiUrl}
-                onChange={(e) => update("apiUrl", e.target.value)}
-                placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label>URL de API</Label>
+            <Input
+              value={form.apiUrl}
+              onChange={(e) => update("apiUrl", e.target.value)}
+              placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
+            />
+          </div>
 
-            {form.platform === "wordpress" ? (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Usuario API</Label>
-                  <Input
-                    value={form.apiUser}
-                    onChange={(e) => update("apiUser", e.target.value)}
-                    placeholder="usuario-wordpress"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Application Password</Label>
-                  <div className="flex gap-1.5">
-                    <Input
-                      type="password"
-                      value={form.apiPassword}
-                      onChange={(e) => update("apiPassword", e.target.value)}
-                      placeholder={form.hasApiPassword ? "••••••••••••" : ""}
-                      className="flex-1"
-                    />
-                    {form.hasApiPassword && !form.apiPassword && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0 size-9 text-green-600"
-                        title="Contraseña guardada — dejá vacío para mantenerla o escribí una nueva"
-                      >
-                        <Check className="size-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
+          {form.platform === "wordpress" ? (
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>API Key</Label>
-                <div className="flex gap-2">
+                <Label>Usuario API</Label>
+                <Input
+                  value={form.apiUser}
+                  onChange={(e) => update("apiUser", e.target.value)}
+                  placeholder="usuario-wordpress"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Application Password</Label>
+                <div className="flex gap-1.5">
                   <Input
+                    type="password"
                     value={form.apiPassword}
                     onChange={(e) => update("apiPassword", e.target.value)}
-                    placeholder={form.hasApiPassword ? "••••••••••••" : "Clave de autenticación"}
-                    className="flex-1 font-mono text-sm"
-                    readOnly={!!form.apiPassword}
+                    placeholder={form.hasApiPassword ? "••••••••••••" : ""}
+                    className="flex-1"
                   />
                   {form.hasApiPassword && !form.apiPassword && (
                     <Button
@@ -404,70 +385,62 @@ function SiteFormDialog({
                       variant="ghost"
                       size="icon"
                       className="shrink-0 size-9 text-green-600"
-                      title="Key guardada — dejá vacío para mantenerla o escribí una nueva"
+                      title="Contraseña guardada — dejá vacío para mantenerla o escribí una nueva"
                     >
                       <Check className="size-4" />
                     </Button>
                   )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <div className="flex gap-2">
+                <Input
+                  value={form.apiPassword}
+                  onChange={(e) => update("apiPassword", e.target.value)}
+                  placeholder={form.hasApiPassword ? "••••••••••••" : "Clave de autenticación"}
+                  className="flex-1 font-mono text-sm"
+                  readOnly={!!form.apiPassword}
+                />
+                {form.hasApiPassword && !form.apiPassword && (
                   <Button
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 gap-1"
-                    onClick={() => {
-                      const key = crypto.randomUUID();
-                      update("apiPassword", key);
-                      navigator.clipboard.writeText(key);
-                    }}
-                    title="Generar API Key y copiar al portapapeles"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 size-9 text-green-600"
+                    title="Key guardada — dejá vacío para mantenerla o escribí una nueva"
                   >
-                    <KeyRound className="size-3" />
-                    Generar y copiar
+                    <Check className="size-4" />
                   </Button>
-                </div>
-                {form.apiPassword && (
-                  <p className="text-xs text-muted-foreground">
-                    Copia esta key y configúrala en tu blog. No se mostrará de nuevo después de guardar.
-                  </p>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1"
+                  onClick={() => {
+                    const key = crypto.randomUUID();
+                    update("apiPassword", key);
+                    navigator.clipboard.writeText(key);
+                  }}
+                  title="Generar API Key y copiar al portapapeles"
+                >
+                  <KeyRound className="size-3" />
+                  Generar y copiar
+                </Button>
               </div>
-            )}
-          </fieldset>
+              {form.apiPassword && (
+                <p className="text-xs text-muted-foreground">
+                  Copia esta key y configúrala en tu blog. No se mostrará de nuevo después de guardar.
+                </p>
+              )}
+            </div>
+          )}
 
           <hr className="border-border" />
 
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Posts por día</Label>
-              <Input
-                type="number"
-                min={1}
-                max={10}
-                value={form.postsPerDay}
-                onChange={(e) => update("postsPerDay", Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Hora inicio</Label>
-              <Input
-                type="number"
-                min={0}
-                max={23}
-                value={form.windowStart}
-                onChange={(e) => update("windowStart", Number(e.target.value))}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Hora fin</Label>
-              <Input
-                type="number"
-                min={0}
-                max={23}
-                value={form.windowEnd}
-                onChange={(e) => update("windowEnd", Number(e.target.value))}
-              />
-            </div>
-          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Mín. palabras</Label>
@@ -488,6 +461,42 @@ function SiteFormDialog({
               />
             </div>
           </div>
+
+          <fieldset className="space-y-3">
+            <legend className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Horario de publicación</legend>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Posts por día</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={form.postsPerDay}
+                  onChange={(e) => update("postsPerDay", Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora inicio</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={form.windowStart}
+                  onChange={(e) => update("windowStart", Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora fin</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={23}
+                  value={form.windowEnd}
+                  onChange={(e) => update("windowEnd", Number(e.target.value))}
+                />
+              </div>
+            </div>
+          </fieldset>
 
           <Button type="submit" className="w-full" disabled={saving}>
             {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
