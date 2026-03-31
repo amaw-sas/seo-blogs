@@ -15,7 +15,8 @@ function makeMockSupabase(removeFn = vi.fn().mockResolvedValue({ error: null }))
 function makeMockPrisma(updateManyFn = vi.fn().mockResolvedValue({ count: 0 })) {
   return {
     imagePool: { updateMany: updateManyFn },
-  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 }
 
 const SUPABASE_BASE = "https://abc123.supabase.co/storage/v1/object/public/post-images";
