@@ -364,24 +364,33 @@ function SiteFormDialog({
               <Label>API Key</Label>
               <div className="flex gap-2">
                 <Input
-                  type="password"
                   value={form.apiPassword}
                   onChange={(e) => update("apiPassword", e.target.value)}
                   placeholder="Clave de autenticación para el blog"
-                  className="flex-1"
+                  className="flex-1 font-mono text-sm"
+                  readOnly={!!form.apiPassword}
                 />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="shrink-0 gap-1"
-                  onClick={() => update("apiPassword", crypto.randomUUID())}
-                  title="Generar API Key aleatoria"
+                  onClick={() => {
+                    const key = crypto.randomUUID();
+                    update("apiPassword", key);
+                    navigator.clipboard.writeText(key);
+                  }}
+                  title="Generar API Key y copiar al portapapeles"
                 >
                   <KeyRound className="size-3" />
-                  Generar
+                  Generar y copiar
                 </Button>
               </div>
+              {form.apiPassword && (
+                <p className="text-xs text-muted-foreground">
+                  Copia esta key y configúrala en tu blog. No se mostrará de nuevo después de guardar.
+                </p>
+              )}
             </div>
           )}
 
