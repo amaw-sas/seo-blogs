@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Globe, Loader2, Play, KeyRound, Check, X, Trash2 } from "lucide-react";
+import { Plus, Pencil, Globe, Loader2, KeyRound, Check, X, Trash2 } from "lucide-react";
 
 interface Site {
   id: string;
@@ -508,7 +508,6 @@ export default function SitesPage() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [editSite, setEditSite] = useState<Site | null>(null);
-  const [generating, setGenerating] = useState<Record<string, boolean>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<Site | null>(null);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -558,28 +557,6 @@ export default function SitesPage() {
     fetchSites();
   }
 
-  async function handleGenerate(site: Site) {
-    setGenerating((prev) => ({ ...prev, [site.id]: true }));
-    try {
-      const res = await fetch(`/api/sites/${site.id}/generate`, {
-        method: "POST",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error ?? "Error al iniciar pipeline");
-        return;
-      }
-      setProgressSite({
-        id: site.id,
-        name: site.name,
-        startedAt: new Date().toISOString(),
-      });
-    } catch {
-      alert("Error de conexión");
-    } finally {
-      setGenerating((prev) => ({ ...prev, [site.id]: false }));
-    }
-  }
 
   async function handleEdit(form: SiteForm) {
     if (!editSite) return;
@@ -676,23 +653,6 @@ export default function SitesPage() {
                   >
                     <Pencil className="size-3" />
                     Editar configuración
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="w-full gap-2"
-                    disabled={!site.active || site._count.keywords === 0 || generating[site.id]}
-                    onClick={() => handleGenerate(site)}
-                  >
-                    {generating[site.id] ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <Play className="size-3" />
-                    )}
-                    {!site.active
-                      ? "Sitio inactivo"
-                      : site._count.keywords === 0
-                        ? "Sin keywords"
-                        : "Generar post"}
                   </Button>
                   <Button
                     variant="outline"
