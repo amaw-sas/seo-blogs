@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +21,10 @@ interface CalendarPost {
   scheduledAt: string | null;
   publishedAt: string | null;
   createdAt: string;
+}
+
+interface SiteConfig {
+  postsPerDay: number;
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -75,21 +81,44 @@ interface HolidayInfo {
 
 export default function CalendarPage() {
   const today = new Date();
+  const router = useRouter();
+  const { siteId } = useSiteContext();
   const [year, setYear] = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+  const [month, setMonth] = useState(today.getMonth());
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [holidays, setHolidays] = useState<HolidayInfo[]>([]);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [siteConfig, setSiteConfig] = useState<SiteConfig | null>(null);
+
+  useEffect(() => {
+    if (!siteId) {
+      setSiteConfig(null);
+      return;
+    }
+    async function fetchSiteConfig() {
+      try {
+        const res = await fetch(`/api/sites/${siteId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSiteConfig({ postsPerDay: data.postsPerDay ?? 1 });
+        }
+      } catch {
+        setSiteConfig(null);
+      }
+    }
+    fetchSiteConfig();
+  }, [siteId]);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
     const dateFrom = new Date(year, month, 1).toISOString();
     const dateTo = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+    const siteParam = siteId ? `&siteId=${siteId}` : "";
     try {
       const res = await fetch(
-        `/api/posts?dateFrom=${dateFrom}&dateTo=${dateTo}&limit=100`,
+        `/api/posts?dateFrom=${dateFrom}&dateTo=${dateTo}&limit=100${siteParam}`,
       );
       if (res.ok) {
         const json = await res.json();
@@ -100,7 +129,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  }, [year, month]);
+  }, [year, month, siteId]);
 
   const fetchHolidays = useCallback(async () => {
     try {
@@ -149,6 +178,8 @@ export default function CalendarPage() {
     }
     return map;
   }, [holidays]);
+
+  const todayKey = dateKey(today);
 
   // Calendar grid computation
   const firstOfMonth = new Date(year, month, 1);
@@ -250,6 +281,11 @@ export default function CalendarPage() {
                 ? holidaysByDay[cell.key] ?? []
                 : [];
               const isSelected = selectedDay === cell.key;
+              const isPast = cell.day ? cell.key < todayKey : false;
+              const isFuture = cell.day ? cell.key > todayKey : false;
+              const postsPerDay = siteConfig?.postsPerDay ?? 0;
+              const hasGap = isPast && siteId && postsPerDay > 0 && dayPosts.length < postsPerDay;
+              const futureSlots = isFuture && siteId && postsPerDay > 0 ? Math.max(0, postsPerDay - dayPosts.length) : 0;
 
               return (
                 <button
@@ -263,6 +299,7 @@ export default function CalendarPage() {
                     ${cell.day ? "hover:bg-accent/50 cursor-pointer" : "bg-muted/30 cursor-default"}
                     ${isSelected ? "ring-2 ring-primary ring-inset" : ""}
                     ${cell.isToday ? "bg-primary/5" : ""}
+                    ${hasGap ? "border-2 border-dashed border-orange-400/60" : ""}
                   `}
                 >
                   {cell.day && (
@@ -278,8 +315,12 @@ export default function CalendarPage() {
                       </span>
                       {dayHolidays.length > 0 && (
                         <div
-                          className="mt-0.5 truncate text-[10px] text-amber-600 dark:text-amber-400"
-                          title={dayHolidays.join(", ")}
+                          className="mt-0.5 truncate text-[10px] text-amber-600 dark:text-amber-400 hover:underline cursor-pointer"
+                          title={`${dayHolidays.join(", ")} — Click para crear keyword`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/keywords?newKeyword=${encodeURIComponent(dayHolidays[0])}`);
+                          }}
                         >
                           🎉 {dayHolidays[0]}
                         </div>
@@ -298,6 +339,30 @@ export default function CalendarPage() {
                               +{dayPosts.length - 4}
                             </span>
                           )}
+                        </div>
+                      )}
+                      {futureSlots > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {Array.from({ length: Math.min(futureSlots, 4) }).map((_, i) => (
+                            <span
+                              key={`slot-${i}`}
+                              className="inline-block size-2.5 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600"
+                              title={`Publicación esperada (${i + 1}/${postsPerDay})`}
+                            />
+                          ))}
+                          {futureSlots > 4 && (
+                            <span className="text-[10px] text-muted-foreground">
+                              +{futureSlots - 4}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {hasGap && dayPosts.length === 0 && (
+                        <div
+                          className="mt-1 text-[10px] text-orange-500 dark:text-orange-400"
+                          title={`Se esperaban ${postsPerDay} posts`}
+                        >
+                          Sin publicación
                         </div>
                       )}
                     </>
@@ -325,6 +390,18 @@ export default function CalendarPage() {
               <span className="inline-block size-2.5 rounded-full bg-gray-400" />{" "}
               Borrador
             </span>
+            {siteId && siteConfig && (
+              <>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block size-2.5 rounded-full border-2 border-dashed border-gray-300 dark:border-gray-600" />{" "}
+                  Esperado
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block size-3 border-2 border-dashed border-orange-400/60 rounded-sm" />{" "}
+                  Brecha
+                </span>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -427,8 +504,18 @@ export default function CalendarPage() {
               <h4 className="font-semibold mb-1">Días festivos</h4>
               <p className="text-muted-foreground">
                 Los días con 🎉 son festivos configurados en el sistema
-                (nacionales, comerciales, lunares). El pipeline puede usar estas
-                fechas para generar contenido estacional automáticamente.
+                (nacionales, comerciales, lunares). Haz click en un festivo
+                para crear una keyword relacionada automáticamente.
+              </p>
+            </section>
+
+            <section>
+              <h4 className="font-semibold mb-1">Brechas y proyección</h4>
+              <p className="text-muted-foreground">
+                Al seleccionar un sitio específico, el calendario muestra
+                brechas (borde naranja punteado) en días pasados donde
+                faltaron publicaciones según la meta diaria, y slots
+                esperados (círculos punteados grises) en días futuros.
               </p>
             </section>
           </div>

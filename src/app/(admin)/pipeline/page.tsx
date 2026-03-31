@@ -114,6 +114,12 @@ function hasOverride(step: PipelineStep, siteId: string): boolean {
   return !!step.overrides?.some((o) => o.siteId === siteId);
 }
 
+const OPTIONAL_STEPS = new Set([
+  "competition_analysis",
+  "auto_categorization",
+  "auto_linking",
+]);
+
 // ── Component ───────────────────────────────────────────────
 
 export default function PipelineEditorPage() {
@@ -400,15 +406,17 @@ export default function PipelineEditorPage() {
                 {saveMessage}
               </span>
             )}
-            <div className="flex items-center gap-2">
-              <Label className="text-sm text-muted-foreground">Activo</Label>
-              <Switch
-                checked={form.active}
-                onCheckedChange={(checked: boolean) =>
-                  updateForm("active", checked)
-                }
-              />
-            </div>
+            {OPTIONAL_STEPS.has(editingStep.stepKey) && (
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Activo</Label>
+                <Switch
+                  checked={form.active}
+                  onCheckedChange={(checked: boolean) =>
+                    updateForm("active", checked)
+                  }
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -430,7 +438,12 @@ export default function PipelineEditorPage() {
           <div className="space-y-6">
             {/* Prompt Base */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Prompt Base</Label>
+              <div>
+                <Label className="text-sm font-semibold">Prompt Base</Label>
+                <p className="text-sm text-muted-foreground">
+                  Instrucción base que define el rol y objetivo de este paso
+                </p>
+              </div>
               <Textarea
                 className="font-mono text-sm"
                 rows={8}
@@ -606,11 +619,9 @@ export default function PipelineEditorPage() {
             </Accordion>
           </div>
         ) : (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Este paso no requiere configuración de IA.
-            </CardContent>
-          </Card>
+          <p className="text-muted-foreground">
+            Este paso no requiere configuración de IA.
+          </p>
         )}
 
         {/* Action buttons */}
@@ -631,16 +642,18 @@ export default function PipelineEditorPage() {
           </div>
           <div className="flex gap-3">
             <Button variant="outline" onClick={stopEditing} disabled={saving}>
-              Cancelar
+              {editingStep.hasPrompt ? "Cancelar" : "Volver"}
             </Button>
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              {saving ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              Guardar
-            </Button>
+            {editingStep.hasPrompt && (
+              <Button onClick={handleSave} disabled={saving} className="gap-2">
+                {saving ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                Guardar
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -698,10 +711,10 @@ export default function PipelineEditorPage() {
                   className="cursor-pointer transition-colors hover:bg-muted/50"
                   onClick={() => startEditing(step)}
                 >
-                  <CardHeader className="pb-2">
+                  <CardHeader className={step.hasPrompt ? "pb-2" : "pb-0"}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-mono text-muted-foreground w-6 text-right">
+                        <span className="w-6 h-6 rounded-full bg-muted-foreground text-white flex items-center justify-center text-xs font-medium shrink-0">
                           {step.order}
                         </span>
                         <CardTitle className="text-base">
@@ -727,8 +740,8 @@ export default function PipelineEditorPage() {
                       {step.description}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="pt-0 pb-3 ml-9">
-                    {step.hasPrompt ? (
+                  {step.hasPrompt && (
+                    <CardContent className="pt-0 pb-3 ml-9">
                       <div className="flex flex-wrap gap-2">
                         <Badge variant="outline" className="text-xs">
                           {step.model}
@@ -742,15 +755,15 @@ export default function PipelineEditorPage() {
                           </Badge>
                         )}
                       </div>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className="text-xs text-muted-foreground"
-                      >
+                    </CardContent>
+                  )}
+                  {!step.hasPrompt && (
+                    <CardContent className="pt-0 pb-3 ml-9">
+                      <span className="text-xs text-muted-foreground">
                         No requiere IA
-                      </Badge>
-                    )}
-                  </CardContent>
+                      </span>
+                    </CardContent>
+                  )}
                 </Card>
               );
             })}

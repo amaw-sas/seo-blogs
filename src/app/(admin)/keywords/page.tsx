@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,6 +102,18 @@ export default function KeywordsPage() {
   const [addPriority, setAddPriority] = useState(0);
   const [addSaving, setAddSaving] = useState(false);
   const [addMessage, setAddMessage] = useState("");
+
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const newKeyword = searchParams.get("newKeyword");
+    if (newKeyword) {
+      setAddPhrase(newKeyword);
+      if (siteFilter) setAddSiteId(siteFilter);
+      setAddOpen(true);
+      window.history.replaceState({}, "", "/keywords");
+    }
+  }, [searchParams, siteFilter]);
 
   const fetchKeywords = useCallback(async () => {
     setLoading(true);

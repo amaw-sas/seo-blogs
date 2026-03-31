@@ -49,6 +49,9 @@ import {
   FileText,
   HelpCircle,
   X,
+  Sparkles,
+  Search,
+  Loader2,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────
@@ -76,6 +79,13 @@ interface SitePost {
   id: string;
   title: string;
   slug: string;
+  keyword: string;
+  status: string;
+}
+
+interface SuggestedPost {
+  id: string;
+  title: string;
   keyword: string;
   status: string;
 }
@@ -124,6 +134,15 @@ export default function ClustersPage() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState("");
   const [addingPost, setAddingPost] = useState(false);
+
+  // Suggest posts state
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [suggestClusterId, setSuggestClusterId] = useState("");
+  const [suggestKeyword, setSuggestKeyword] = useState("");
+  const [suggestedPosts, setSuggestedPosts] = useState<SuggestedPost[]>([]);
+  const [selectedSuggestIds, setSelectedSuggestIds] = useState<Set<string>>(new Set());
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [addingSuggested, setAddingSuggested] = useState(false);
 
   const fetchClusters = useCallback(async () => {
     setLoading(true);
@@ -254,6 +273,81 @@ export default function ClustersPage() {
       // Error handled silently
     } finally {
       setAddingPost(false);
+    }
+  }
+
+  function openSuggestDialog(cluster: Cluster) {
+    setSuggestClusterId(cluster.id);
+    setSuggestKeyword(cluster.pillarKeyword);
+    setSuggestedPosts([]);
+    setSelectedSuggestIds(new Set());
+    setSuggestOpen(true);
+  }
+
+  async function fetchSuggestions() {
+    const cluster = clusters.find((c) => c.id === suggestClusterId);
+    if (!cluster || !suggestKeyword.trim()) return;
+
+    setLoadingSuggest(true);
+    try {
+      const site = sites.find((s) => s.domain === cluster.site.domain);
+      if (!site) return;
+
+      const excludeIds = cluster.clusterPosts.map((cp) => cp.post.id).join(",");
+      const params = new URLSearchParams({
+        keyword: suggestKeyword.trim(),
+        siteId: site.id,
+        ...(excludeIds && { excludePostIds: excludeIds }),
+      });
+
+      const res = await fetch(`/api/clusters/suggest-posts?${params}`);
+      const data = await res.json();
+      setSuggestedPosts(data.data ?? []);
+      setSelectedSuggestIds(new Set());
+    } catch {
+      setSuggestedPosts([]);
+    } finally {
+      setLoadingSuggest(false);
+    }
+  }
+
+  function toggleSuggestSelection(postId: string) {
+    setSelectedSuggestIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  }
+
+  async function handleAddSuggestedPosts() {
+    if (selectedSuggestIds.size === 0 || !suggestClusterId) return;
+    setAddingSuggested(true);
+    try {
+      const cluster = clusters.find((c) => c.id === suggestClusterId);
+      const currentPosts =
+        cluster?.clusterPosts.map((cp) => ({
+          postId: cp.post.id,
+          isPillar: cp.isPillar,
+        })) ?? [];
+
+      const newPosts = Array.from(selectedSuggestIds).map((id) => ({
+        postId: id,
+        isPillar: false,
+      }));
+
+      await fetch(`/api/clusters/${suggestClusterId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ posts: [...currentPosts, ...newPosts] }),
+      });
+
+      setSuggestOpen(false);
+      fetchClusters();
+    } catch {
+      // Error handled silently
+    } finally {
+      setAddingSuggested(false);
     }
   }
 
@@ -523,17 +617,28 @@ export default function ClustersPage() {
                         </p>
                       )}
 
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full gap-2"
-                        onClick={() =>
-                          openAddPostDialog(cluster.id, cluster.site.domain)
-                        }
-                      >
-                        <Plus className="size-4" />
-                        Agregar post
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-2"
+                          onClick={() =>
+                            openAddPostDialog(cluster.id, cluster.site.domain)
+                          }
+                        >
+                          <Plus className="size-4" />
+                          Agregar post
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 gap-2"
+                          onClick={() => openSuggestDialog(cluster)}
+                        >
+                          <Sparkles className="size-4" />
+                          Sugerir posts
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </CardContent>
@@ -591,6 +696,100 @@ export default function ClustersPage() {
               disabled={addingPost || !selectedPostId}
             >
               {addingPost ? "Agregando..." : "Agregar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suggest posts dialog */}
+      <Dialog open={suggestOpen} onOpenChange={setSuggestOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Sugerir posts por keyword</DialogTitle>
+            <DialogDescription>
+              Busca posts cuyo título o keyword coincidan con el término ingresado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Keyword de búsqueda"
+                value={suggestKeyword}
+                onChange={(e) => setSuggestKeyword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") fetchSuggestions();
+                }}
+              />
+              <Button
+                size="sm"
+                className="shrink-0 gap-2"
+                onClick={fetchSuggestions}
+                disabled={loadingSuggest || !suggestKeyword.trim()}
+              >
+                {loadingSuggest ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Search className="size-4" />
+                )}
+                Buscar
+              </Button>
+            </div>
+
+            {loadingSuggest ? (
+              <div className="space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : suggestedPosts.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">
+                  {suggestedPosts.length} resultado{suggestedPosts.length !== 1 ? "s" : ""}
+                </p>
+                <div className="max-h-64 space-y-1 overflow-y-auto rounded-md border p-2">
+                  {suggestedPosts.map((post) => (
+                    <label
+                      key={post.id}
+                      className="flex cursor-pointer items-start gap-3 rounded-md p-2 hover:bg-muted/50"
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 size-4 shrink-0 rounded border-gray-300 accent-primary"
+                        checked={selectedSuggestIds.has(post.id)}
+                        onChange={() => toggleSuggestSelection(post.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{post.title}</p>
+                        <div className="flex items-center gap-2">
+                          <span className="truncate text-xs text-muted-foreground">
+                            {post.keyword}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className={`shrink-0 text-xs ${statusColors[post.status] ?? ""}`}
+                          >
+                            {statusLabels[post.status] ?? post.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : suggestKeyword && !loadingSuggest ? (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                Sin resultados para &quot;{suggestKeyword}&quot;
+              </p>
+            ) : null}
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleAddSuggestedPosts}
+              disabled={addingSuggested || selectedSuggestIds.size === 0}
+            >
+              {addingSuggested
+                ? "Agregando..."
+                : `Agregar seleccionados (${selectedSuggestIds.size})`}
             </Button>
           </DialogFooter>
         </DialogContent>
