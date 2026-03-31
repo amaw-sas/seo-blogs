@@ -34,8 +34,9 @@ export function SiteProvider({ children }: { children: React.ReactNode }) {
       try {
         const res = await fetch("/api/sites");
         if (res.ok) {
-          const data = await res.json();
-          setSites(data.map((s: SiteInfo) => ({ id: s.id, name: s.name, domain: s.domain })));
+          const json = await res.json();
+          const list = Array.isArray(json) ? json : json.data ?? [];
+          setSites(list.map((s: SiteInfo) => ({ id: s.id, name: s.name, domain: s.domain })));
         }
       } finally {
         setLoading(false);
