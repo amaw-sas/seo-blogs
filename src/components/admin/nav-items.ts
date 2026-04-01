@@ -10,6 +10,7 @@ import {
   BarChart3,
   Settings,
   Workflow,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
@@ -29,6 +30,7 @@ export const navItems: NavItem[] = [
   { title: "Logs", href: "/logs", icon: ScrollText },
   { title: "Image Pool", href: "/image-pool", icon: ImageIcon },
   { title: "Pipeline", href: "/pipeline", icon: Workflow },
+  { title: "Ejecuciones", href: "/runs", icon: Activity },
   { title: "Clusters", href: "/clusters", icon: Network },
   { title: "Configuración", href: "/settings", icon: Settings },
 ];

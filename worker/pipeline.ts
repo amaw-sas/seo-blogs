@@ -613,6 +613,12 @@ export async function runPipeline(
     }
   }
 
+  if (site.platform === "wordpress" && !(site.apiUrl && site.apiUser && site.apiPassword)) {
+    await logStep(siteId, post.id, "wordpress_publish", "skipped", {
+      reason: "Credenciales incompletas — configura apiUrl, apiUser y apiPassword en el sitio",
+    });
+  }
+
   // Step 12b: Publish to Nuxt Blog (if site has nuxt-blog credentials)
   if (site.platform === "nuxt-blog" && site.apiUrl && site.apiPassword) {
     try {
@@ -687,6 +693,12 @@ export async function runPipeline(
       });
       // Non-fatal: post remains in DB with status "review"
     }
+  }
+
+  if (site.platform === "nuxt-blog" && !(site.apiUrl && site.apiPassword)) {
+    await logStep(siteId, post.id, "nuxt_publish", "skipped", {
+      reason: "Credenciales incompletas — configura apiUrl y apiPassword en el sitio",
+    });
   }
 
   return {

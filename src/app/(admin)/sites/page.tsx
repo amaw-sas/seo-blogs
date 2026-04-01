@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Pencil, Globe, Loader2, KeyRound, Check, X, Trash2, BookOpen, Play } from "lucide-react";
 
+
 interface Site {
   id: string;
   domain: string;
@@ -52,182 +53,6 @@ interface Site {
   _count: { keywords: number };
 }
 
-interface LogEntry {
-  id: string;
-  eventType: string;
-  status: string;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
-}
-
-const STEP_LABELS: Record<string, string> = {
-  pipeline_run: "Inicio del pipeline",
-  keyword_selection: "Selección de keyword",
-  competition_analysis: "Análisis de competencia",
-  outline_generation: "Generación de outline",
-  content_generation: "Generación de contenido",
-  image_generation: "Generación de imágenes",
-  seo_scoring: "Puntuación SEO",
-  regeneration: "Regeneración (score bajo)",
-  post_save: "Guardado del post",
-  auto_categorization: "Categorización automática",
-  auto_linking: "Enlaces automáticos",
-  wordpress_publish: "Publicación WordPress",
-  pipeline_error: "Error en pipeline",
-};
-
-function StepIcon({ status }: { status: string }) {
-  if (status === "started") return <Loader2 className="size-4 animate-spin text-blue-500" />;
-  if (status === "success") return <Check className="size-4 text-green-500" />;
-  if (status === "failed") return <X className="size-4 text-red-500" />;
-  return <Loader2 className="size-4 text-muted-foreground" />;
-}
-
-function PipelineProgressDialog({
-  open,
-  onOpenChange,
-  siteId,
-  siteName,
-  runStartedAt,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  siteId: string;
-  siteName: string;
-  runStartedAt: string;
-}) {
-  const [steps, setSteps] = useState<LogEntry[]>([]);
-  const [done, setDone] = useState(false);
-  const [timedOut, setTimedOut] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const poll = useCallback(async () => {
-    try {
-      const params = new URLSearchParams({
-        siteId,
-        dateFrom: runStartedAt,
-        limit: "50",
-      });
-      const res = await fetch(`/api/logs?${params}`);
-      const data = await res.json();
-      const logs: LogEntry[] = data.data ?? [];
-      // API returns desc order, reverse for chronological display
-      setSteps([...logs].reverse());
-
-      const terminalEvents = ["pipeline_run", "wordpress_publish", "auto_linking", "auto_categorization"];
-      const terminal = logs.some(
-        (l) =>
-          (l.eventType === "pipeline_run" && (l.status === "success" || l.status === "failed")) ||
-          (terminalEvents.includes(l.eventType) && l.status === "success" && logs.some(
-            (l2) => l2.eventType === "post_save" && l2.status === "success"
-          )),
-      );
-      if (terminal) setDone(true);
-    } catch {
-      // Silently retry on next poll
-    }
-  }, [siteId, runStartedAt]);
-
-  useEffect(() => {
-    if (!open) return;
-    poll(); // eslint-disable-line react-hooks/set-state-in-effect -- polling pattern: poll() is a stable callback that fetches external data
-    intervalRef.current = setInterval(poll, 3000);
-
-    // Auto-stop after 5.5 min (matches maxDuration=300s + buffer)
-    const timeout = setTimeout(() => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      setTimedOut(true);
-      setDone(true);
-    }, 330_000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      clearTimeout(timeout);
-    };
-  }, [open, poll]);
-
-  useEffect(() => {
-    if (done && intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  }, [done]);
-
-  const postId = steps.find(
-    (s) => s.eventType === "post_save" && s.status === "success",
-  )?.metadata?.postId as string | undefined;
-
-  const failed = steps.some(
-    (s) => s.eventType === "pipeline_run" && s.status === "failed",
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Generando post — {siteName}</DialogTitle>
-          <DialogDescription>
-            {done
-              ? failed
-                ? "El pipeline falló"
-                : timedOut
-                  ? "Tiempo agotado — el pipeline puede seguir en segundo plano"
-                  : "Pipeline completado"
-              : "El pipeline está corriendo..."}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-          {steps.length === 0 && !done && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
-              <Loader2 className="size-4 animate-spin" />
-              Esperando primer paso...
-            </div>
-          )}
-          {(() => {
-            // Collapse: show only the latest status per eventType
-            const byEvent = new Map<string, LogEntry>();
-            for (const s of steps) {
-              if (s.eventType === "pipeline_run") continue;
-              const existing = byEvent.get(s.eventType);
-              if (!existing || s.status !== "started") byEvent.set(s.eventType, s);
-            }
-            return Array.from(byEvent.values()).map((step) => (
-              <div key={step.id} className="flex items-center gap-3 text-sm">
-                <StepIcon status={step.status} />
-                <span className="flex-1">
-                  {STEP_LABELS[step.eventType] ?? step.eventType}
-                </span>
-                {"keyword" in (step.metadata ?? {}) && (
-                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                    {String(step.metadata!.keyword)}
-                  </span>
-                )}
-                {"score" in (step.metadata ?? {}) && (
-                  <Badge variant="secondary" className="text-xs">
-                    SEO: {String(step.metadata!.score)}
-                  </Badge>
-                )}
-                {"error" in (step.metadata ?? {}) && (
-                  <span className="text-xs text-red-500 truncate max-w-[200px]">
-                    {String(step.metadata!.error)}
-                  </span>
-                )}
-              </div>
-            ));
-          })()}
-        </div>
-        {postId && (
-          <a
-            href={`/posts/${postId}/edit`}
-            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Ver post generado
-          </a>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 const defaultSiteForm = {
   name: "",
@@ -526,11 +351,6 @@ export default function SitesPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Site | null>(null);
   const [deleteInput, setDeleteInput] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const [progressSite, setProgressSite] = useState<{
-    id: string;
-    name: string;
-    startedAt: string;
-  } | null>(null);
 
   async function fetchSites() {
     try {
@@ -570,7 +390,7 @@ export default function SitesPage() {
         alert(err.error ?? `Error ${res.status}`);
         return;
       }
-      setProgressSite({ id: site.id, name: site.name, startedAt: new Date().toISOString() });
+      router.push(`/runs?siteId=${site.id}&from=${new Date().toISOString()}`);
     } catch {
       alert("No se pudo iniciar el pipeline");
     }
@@ -794,21 +614,6 @@ export default function SitesPage() {
         </DialogContent>
       </Dialog>
 
-      {progressSite && (
-        <PipelineProgressDialog
-          key={progressSite.startedAt}
-          open={!!progressSite}
-          onOpenChange={(open) => {
-            if (!open) {
-              setProgressSite(null);
-              fetchSites();
-            }
-          }}
-          siteId={progressSite.id}
-          siteName={progressSite.name}
-          runStartedAt={progressSite.startedAt}
-        />
-      )}
     </div>
   );
 }
