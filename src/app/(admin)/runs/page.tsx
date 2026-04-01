@@ -229,11 +229,15 @@ function PipelineVisualizer({
         : "success"
     : "running";
 
+  const hasSkipped = logs.some((l) => l.status === "skipped");
+
   const overallLabel =
     overallStatus === "running"
       ? "En progreso..."
       : overallStatus === "success"
-        ? "Completado"
+        ? hasSkipped
+          ? "Completado sin publicar"
+          : "Completado y publicado"
         : overallStatus === "timeout"
           ? "Tiempo agotado"
           : "Fallido";
@@ -242,7 +246,9 @@ function PipelineVisualizer({
     overallStatus === "running"
       ? "text-blue-600"
       : overallStatus === "success"
-        ? "text-green-600"
+        ? hasSkipped
+          ? "text-amber-600"
+          : "text-green-600"
         : "text-red-600";
 
   const keyword = logs.find(
@@ -253,8 +259,9 @@ function PipelineVisualizer({
     (l) => l.eventType === "post_save" && l.status === "success",
   )?.metadata?.postId as string | undefined;
 
-  const sitePlatform = site ? undefined : undefined;
-  const stepStates = buildStepStates(logs, sitePlatform);
+  const logSite = logs.find((l) => l.site)?.site;
+  const sitePlatform = logSite ? undefined : undefined;
+  const stepStates = buildStepStates(logs);
 
   return (
     <div className="space-y-6">
@@ -329,6 +336,11 @@ function PipelineVisualizer({
                   {"error" in state.metadata && (
                     <p className="text-[10px] text-red-500 truncate" title={String(state.metadata.error)}>
                       {String(state.metadata.error)}
+                    </p>
+                  )}
+                  {"reason" in state.metadata && (
+                    <p className="text-[10px] text-amber-600 truncate" title={String(state.metadata.reason)}>
+                      {String(state.metadata.reason)}
                     </p>
                   )}
                 </div>
