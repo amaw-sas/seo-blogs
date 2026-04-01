@@ -230,26 +230,40 @@ function PipelineVisualizer({
     : "running";
 
   const hasSkipped = logs.some((l) => l.status === "skipped");
+  const hasStepFailed = logs.some(
+    (l) => l.status === "failed" && l.eventType !== "pipeline_run" && l.eventType !== "pipeline_error",
+  );
+  const publishOk = logs.some(
+    (l) => (l.eventType === "wordpress_publish" || l.eventType === "nuxt_publish") && l.status === "success",
+  );
 
   const overallLabel =
     overallStatus === "running"
       ? "En progreso..."
-      : overallStatus === "success"
-        ? hasSkipped
-          ? "Completado sin publicar"
-          : "Completado y publicado"
+      : overallStatus === "failed"
+        ? "Fallido"
         : overallStatus === "timeout"
           ? "Tiempo agotado"
-          : "Fallido";
+          : hasStepFailed
+            ? "Completado con errores"
+            : hasSkipped
+              ? "Completado sin publicar"
+              : publishOk
+                ? "Completado y publicado"
+                : "Completado";
 
   const overallColor =
     overallStatus === "running"
       ? "text-blue-600"
-      : overallStatus === "success"
-        ? hasSkipped
-          ? "text-amber-600"
-          : "text-green-600"
-        : "text-red-600";
+      : overallStatus === "failed"
+        ? "text-red-600"
+        : hasStepFailed
+          ? "text-red-600"
+          : hasSkipped
+            ? "text-amber-600"
+            : publishOk
+              ? "text-green-600"
+              : "text-green-600";
 
   const keyword = logs.find(
     (l) => l.eventType === "keyword_selection" && l.metadata?.keyword,
@@ -334,7 +348,7 @@ function PipelineVisualizer({
                     </Badge>
                   )}
                   {"error" in state.metadata && (
-                    <p className="text-[10px] text-red-500 truncate" title={String(state.metadata.error)}>
+                    <p className="text-[10px] text-red-500 line-clamp-3" title={String(state.metadata.error)}>
                       {String(state.metadata.error)}
                     </p>
                   )}
