@@ -218,14 +218,14 @@ function SiteFormDialog({
           {form.platform === "wordpress" ? (
             <>
               <div className="space-y-2">
-                <Label>Usuario de WordPress</Label>
+                <Label>Nombre de usuario</Label>
                 <Input
                   value={form.apiUser}
                   onChange={(e) => update("apiUser", e.target.value)}
-                  placeholder="seo-blog"
+                  placeholder="valeria"
                 />
                 <p className="text-xs text-muted-foreground">
-                  El nombre de usuario de WordPress que tiene la contraseña de aplicación. Lo encuentras en WordPress → Usuarios → tu perfil.
+                  El <strong>Nombre de usuario</strong> que aparece en WordPress → Usuarios → Perfil. No es el nombre de la contraseña.
                 </p>
               </div>
               <div className="space-y-2">
