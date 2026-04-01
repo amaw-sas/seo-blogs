@@ -114,9 +114,14 @@ function buildStepStates(logs: LogEntry[], platform?: string): StepState[] {
     logByStep.set(log.eventType, existing);
   }
 
+  const logEvents = new Set(logs.map((l) => l.eventType));
+  const pipelineDone = logs.some(
+    (l) => l.eventType === "pipeline_run" && (l.status === "success" || l.status === "failed"),
+  );
+
   const steps = PIPELINE_STEPS.filter((step) => {
-    if (step === "wordpress_publish" && platform && platform !== "wordpress") return false;
-    if (step === "nuxt_publish" && platform && platform !== "custom") return false;
+    if (step === "wordpress_publish" && pipelineDone && !logEvents.has("wordpress_publish")) return false;
+    if (step === "nuxt_publish" && pipelineDone && !logEvents.has("nuxt_publish")) return false;
     return true;
   });
 
