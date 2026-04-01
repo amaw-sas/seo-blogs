@@ -419,7 +419,9 @@ function KeywordsContent() {
                   <Label htmlFor="add-site">Sitio</Label>
                   <Select value={addSiteId} onValueChange={(v: string | null) => setAddSiteId(v ?? "")}>
                     <SelectTrigger id="add-site" className="w-full">
-                      <SelectValue placeholder="Seleccionar sitio" />
+                      <SelectValue placeholder="Seleccionar sitio">
+                        {sites.find((s) => s.id === addSiteId)?.name ?? "Seleccionar sitio"}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {sites.map((s) => (
@@ -440,7 +442,8 @@ function KeywordsContent() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="add-priority">Prioridad (0-10)</Label>
+                  <Label htmlFor="add-priority">Prioridad</Label>
+                  <p className="text-xs text-muted-foreground">0 = baja, 10 = máxima. Keywords con mayor prioridad se procesan primero.</p>
                   <Input
                     id="add-priority"
                     type="number"
