@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Pencil, Globe, Loader2, KeyRound, Check, X, Trash2, BookOpen } from "lucide-react";
+import { Plus, Pencil, Globe, Loader2, KeyRound, Check, X, Trash2, BookOpen, Play } from "lucide-react";
 
 interface Site {
   id: string;
@@ -553,6 +553,20 @@ export default function SitesPage() {
     }
   }
 
+  async function handleTestPipeline(site: Site) {
+    try {
+      const res = await fetch(`/api/sites/${site.id}/generate`, { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Error desconocido" }));
+        alert(err.error ?? `Error ${res.status}`);
+        return;
+      }
+      setProgressSite({ id: site.id, name: site.name, startedAt: new Date().toISOString() });
+    } catch {
+      alert("No se pudo iniciar el pipeline");
+    }
+  }
+
   async function handleCreate(form: SiteForm) {
     const { hasApiPassword, ...payload } = form;
     const res = await fetch("/api/sites", {
@@ -670,6 +684,17 @@ export default function SitesPage() {
                   >
                     <BookOpen className="size-3" />
                     Base de conocimiento
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => handleTestPipeline(site)}
+                    disabled={site._count.keywords === 0}
+                    title={site._count.keywords === 0 ? "No hay keywords pendientes" : "Genera un post de prueba con la keyword de mayor prioridad"}
+                  >
+                    <Play className="size-3" />
+                    Probar pipeline
                   </Button>
                   <Button
                     variant="outline"
