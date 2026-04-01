@@ -97,6 +97,17 @@ function SiteFormDialog({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function formatDomain(v: string) {
+    return v.trim().replace(/^https?[:;]\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+  }
+
+  function formatUrl(v: string) {
+    let url = v.trim().replace(/\/+$/, "");
+    if (!url) return "";
+    url = url.replace(/^https?[:;]\/\//, "");
+    return `https://${url}`;
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -129,15 +140,12 @@ function SiteFormDialog({
               value={form.domain}
               onChange={(e) => update("domain", e.target.value)}
               onBlur={() => {
-                const cleaned = form.domain.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/+$/, "");
+                const cleaned = formatDomain(form.domain);
                 if (cleaned !== form.domain) update("domain", cleaned);
               }}
               required
-              placeholder="ejemplo.com"
+              placeholder="alquilerdecarrosbogota.com"
             />
-            <p className="text-xs text-muted-foreground">
-              Solo el dominio, sin https:// ni www. Ej: alquilerdecarrosbogota.com
-            </p>
           </div>
           <div className="space-y-2">
             <Label>URL de conversión</Label>
@@ -145,14 +153,13 @@ function SiteFormDialog({
               value={form.conversionUrl}
               onChange={(e) => update("conversionUrl", e.target.value)}
               onBlur={() => {
-                let v = form.conversionUrl.trim().replace(/\/+$/, "");
-                if (v && !/^https?:\/\//.test(v)) v = `https://${v}`;
-                if (v !== form.conversionUrl) update("conversionUrl", v);
+                const cleaned = formatUrl(form.conversionUrl);
+                if (cleaned !== form.conversionUrl) update("conversionUrl", cleaned);
               }}
-              placeholder="https://reservatuvehiculo.com"
+              placeholder="reservatuvehiculo.com"
             />
             <p className="text-xs text-muted-foreground">
-              URL completa con https://. Cada post incluirá un link contextual hacia esta dirección.
+              Cada post incluirá un link contextual hacia esta dirección.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -192,11 +199,15 @@ function SiteFormDialog({
             <Input
               value={form.apiUrl}
               onChange={(e) => update("apiUrl", e.target.value)}
-              placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
+              onBlur={() => {
+                const cleaned = formatUrl(form.apiUrl);
+                if (cleaned !== form.apiUrl) update("apiUrl", cleaned);
+              }}
+              placeholder={form.platform === "wordpress" ? "alquilerdecarrosbogota.com/wp-json" : "ejemplo.com/api"}
             />
             {form.platform === "wordpress" && (
               <p className="text-xs text-muted-foreground">
-                Es tu dominio + <code className="bg-muted px-1 rounded">/wp-json</code>. Ej: https://alquilerdecarrosbogota.com/wp-json
+                Tu dominio + <code className="bg-muted px-1 rounded">/wp-json</code>
               </p>
             )}
           </div>
