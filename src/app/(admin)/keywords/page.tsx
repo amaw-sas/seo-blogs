@@ -188,6 +188,22 @@ function KeywordsContent() {
     }
   }
 
+  async function handlePriorityChange(id: string, newPriority: number) {
+    const clamped = Math.min(10, Math.max(0, newPriority));
+    setKeywords((prev) =>
+      prev.map((k) => (k.id === id ? { ...k, priority: clamped } : k))
+    );
+    try {
+      await fetch(`/api/keywords/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ priority: clamped }),
+      });
+    } catch {
+      fetchKeywords();
+    }
+  }
+
   function toggleSelect(id: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -649,7 +665,16 @@ function KeywordsContent() {
                           {statusLabels[kw.status] ?? kw.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">{kw.priority}</TableCell>
+                      <TableCell className="text-right">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={10}
+                          value={kw.priority}
+                          onChange={(e) => handlePriorityChange(kw.id, Number(e.target.value))}
+                          className="w-16 h-7 text-right text-sm ml-auto"
+                        />
+                      </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {kw.parentId ? "Expandida" : "Manual"}
                       </TableCell>
