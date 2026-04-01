@@ -114,11 +114,13 @@ function PipelineProgressDialog({
       // API returns desc order, reverse for chronological display
       setSteps([...logs].reverse());
 
+      const terminalEvents = ["pipeline_run", "wordpress_publish", "auto_linking", "auto_categorization"];
       const terminal = logs.some(
         (l) =>
-          (l.eventType === "post_save" && l.status === "success") ||
-          (l.eventType === "pipeline_run" && l.status === "success") ||
-          (l.eventType === "pipeline_run" && l.status === "failed"),
+          (l.eventType === "pipeline_run" && (l.status === "success" || l.status === "failed")) ||
+          (terminalEvents.includes(l.eventType) && l.status === "success" && logs.some(
+            (l2) => l2.eventType === "post_save" && l2.status === "success"
+          )),
       );
       if (terminal) setDone(true);
     } catch {
@@ -181,31 +183,38 @@ function PipelineProgressDialog({
               Esperando primer paso...
             </div>
           )}
-          {steps
-            .filter((s) => !(s.eventType === "pipeline_run" && s.status === "started"))
-            .map((step) => (
-            <div key={step.id} className="flex items-center gap-3 text-sm">
-              <StepIcon status={step.status} />
-              <span className="flex-1">
-                {STEP_LABELS[step.eventType] ?? step.eventType}
-              </span>
-              {"keyword" in (step.metadata ?? {}) && (
-                <span className="text-xs text-muted-foreground truncate max-w-[120px]">
-                  {String(step.metadata!.keyword)}
+          {(() => {
+            // Collapse: show only the latest status per eventType
+            const byEvent = new Map<string, LogEntry>();
+            for (const s of steps) {
+              if (s.eventType === "pipeline_run") continue;
+              const existing = byEvent.get(s.eventType);
+              if (!existing || s.status !== "started") byEvent.set(s.eventType, s);
+            }
+            return Array.from(byEvent.values()).map((step) => (
+              <div key={step.id} className="flex items-center gap-3 text-sm">
+                <StepIcon status={step.status} />
+                <span className="flex-1">
+                  {STEP_LABELS[step.eventType] ?? step.eventType}
                 </span>
-              )}
-              {"score" in (step.metadata ?? {}) && (
-                <Badge variant="secondary" className="text-xs">
-                  SEO: {String(step.metadata!.score)}
-                </Badge>
-              )}
-              {"error" in (step.metadata ?? {}) && (
-                <span className="text-xs text-red-500 truncate max-w-[200px]">
-                  {String(step.metadata!.error)}
-                </span>
-              )}
-            </div>
-          ))}
+                {"keyword" in (step.metadata ?? {}) && (
+                  <span className="text-xs text-muted-foreground truncate max-w-[120px]">
+                    {String(step.metadata!.keyword)}
+                  </span>
+                )}
+                {"score" in (step.metadata ?? {}) && (
+                  <Badge variant="secondary" className="text-xs">
+                    SEO: {String(step.metadata!.score)}
+                  </Badge>
+                )}
+                {"error" in (step.metadata ?? {}) && (
+                  <span className="text-xs text-red-500 truncate max-w-[200px]">
+                    {String(step.metadata!.error)}
+                  </span>
+                )}
+              </div>
+            ));
+          })()}
         </div>
         {postId && (
           <a
