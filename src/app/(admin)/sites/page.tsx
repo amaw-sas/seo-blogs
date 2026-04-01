@@ -142,6 +142,9 @@ function SiteFormDialog({
               onBlur={() => {
                 const cleaned = formatDomain(form.domain);
                 if (cleaned !== form.domain) update("domain", cleaned);
+                if (cleaned && form.platform === "wordpress" && !form.apiUrl) {
+                  update("apiUrl", `https://${cleaned}/wp-json`);
+                }
               }}
               required
               placeholder="alquilerdecarrosbogota.com"
