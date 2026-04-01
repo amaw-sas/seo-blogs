@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  typescript: {
+    // Type checking runs in CI (GitHub Actions) — skip in Vercel build to avoid OOM
+    ignoreBuildErrors: true,
+  },
   images: {
     remotePatterns: [
       {
