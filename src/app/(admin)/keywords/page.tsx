@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +70,14 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function KeywordsPage() {
+  return (
+    <Suspense>
+      <KeywordsContent />
+    </Suspense>
+  );
+}
+
+function KeywordsContent() {
   const { siteId: siteFilter, sites } = useSiteContext();
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [total, setTotal] = useState(0);
