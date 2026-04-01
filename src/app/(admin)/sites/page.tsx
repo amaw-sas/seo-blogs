@@ -135,6 +135,9 @@ function SiteFormDialog({
               required
               placeholder="ejemplo.com"
             />
+            <p className="text-xs text-muted-foreground">
+              Solo el dominio, sin https:// ni www. Ej: alquilerdecarrosbogota.com
+            </p>
           </div>
           <div className="space-y-2">
             <Label>URL de conversión</Label>
@@ -142,14 +145,14 @@ function SiteFormDialog({
               value={form.conversionUrl}
               onChange={(e) => update("conversionUrl", e.target.value)}
               onBlur={() => {
-                let v = form.conversionUrl.trim();
+                let v = form.conversionUrl.trim().replace(/\/+$/, "");
                 if (v && !/^https?:\/\//.test(v)) v = `https://${v}`;
                 if (v !== form.conversionUrl) update("conversionUrl", v);
               }}
-              placeholder="https://ejemplo.com/contacto"
+              placeholder="https://reservatuvehiculo.com"
             />
             <p className="text-xs text-muted-foreground">
-              Cada post incluirá un link contextual hacia esta URL.
+              URL completa con https://. Cada post incluirá un link contextual hacia esta dirección.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -185,32 +188,40 @@ function SiteFormDialog({
           <hr className="border-border" />
 
           <div className="space-y-2">
-            <Label>URL de API</Label>
+            <Label>URL de la REST API</Label>
             <Input
               value={form.apiUrl}
               onChange={(e) => update("apiUrl", e.target.value)}
               placeholder={form.platform === "wordpress" ? "https://ejemplo.com/wp-json" : "https://ejemplo.com/api"}
             />
+            {form.platform === "wordpress" && (
+              <p className="text-xs text-muted-foreground">
+                Es tu dominio + <code className="bg-muted px-1 rounded">/wp-json</code>. Ej: https://alquilerdecarrosbogota.com/wp-json
+              </p>
+            )}
           </div>
 
           {form.platform === "wordpress" ? (
-            <div className="grid gap-4 sm:grid-cols-2">
+            <>
               <div className="space-y-2">
-                <Label>Usuario API</Label>
+                <Label>Usuario de WordPress</Label>
                 <Input
                   value={form.apiUser}
                   onChange={(e) => update("apiUser", e.target.value)}
-                  placeholder="usuario-wordpress"
+                  placeholder="seo-blog"
                 />
+                <p className="text-xs text-muted-foreground">
+                  El nombre de usuario de WordPress que tiene la contraseña de aplicación. Lo encuentras en WordPress → Usuarios → tu perfil.
+                </p>
               </div>
               <div className="space-y-2">
-                <Label>Application Password</Label>
+                <Label>Contraseña de aplicación</Label>
                 <div className="flex gap-1.5">
                   <Input
                     type="password"
                     value={form.apiPassword}
                     onChange={(e) => update("apiPassword", e.target.value)}
-                    placeholder={form.hasApiPassword ? "••••••••••••" : ""}
+                    placeholder={form.hasApiPassword ? "••••••••••••" : "xxxx xxxx xxxx xxxx xxxx xxxx"}
                     className="flex-1"
                   />
                   {form.hasApiPassword && !form.apiPassword && (
@@ -225,8 +236,11 @@ function SiteFormDialog({
                     </Button>
                   )}
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Genérala en WordPress → Usuarios → tu perfil → Contraseñas de aplicación. Pega el código completo con espacios.
+                </p>
               </div>
-            </div>
+            </>
           ) : (
             <div className="space-y-2">
               <Label>API Key</Label>
