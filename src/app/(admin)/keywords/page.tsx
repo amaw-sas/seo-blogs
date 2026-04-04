@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import * as Papa from "papaparse";
 import { useSiteContext } from "@/lib/site-context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -102,6 +103,16 @@ function KeywordsContent() {
   const [expandLoading, setExpandLoading] = useState(false);
   const [expandSaving, setExpandSaving] = useState(false);
   const [expandSiteId, setExpandSiteId] = useState("");
+
+  // CSV import with column mapping
+  const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][] } | null>(null);
+  const [keywordCol, setKeywordCol] = useState<number | null>(null);
+  const [priorityCol, setPriorityCol] = useState<number | null>(null);
+  const [dedupResults, setDedupResults] = useState<Array<{ phrase: string; status: string; matchedPhrase?: string }>>([]);
+  const [dedupLoading, setDedupLoading] = useState(false);
+  const [importCount, setImportCount] = useState(0);
+  const [showClusterBanner, setShowClusterBanner] = useState(false);
+  const [clusteringLoading, setClusteringLoading] = useState(false);
 
   // Add keyword dialog
   const [addOpen, setAddOpen] = useState(false);
@@ -314,27 +325,119 @@ function KeywordsContent() {
     );
   }
 
-  async function handleUpload() {
-    const file = fileInputRef.current?.files?.[0];
+  function handleCsvFileSelect(file: File | undefined) {
     if (!file) return;
+    Papa.parse(file, {
+      header: false,
+      skipEmptyLines: true,
+      complete(result) {
+        const allRows = result.data as string[][];
+        if (allRows.length < 2) {
+          setUploadMessage("El archivo no contiene datos suficientes");
+          return;
+        }
+        const headers = allRows[0];
+        const rows = allRows.slice(1);
+        setCsvData({ headers, rows });
+        setDedupResults([]);
+        setUploadMessage("");
 
+        // Auto-detect columns
+        let kwCol: number | null = null;
+        let prioCol: number | null = null;
+        headers.forEach((h, i) => {
+          const lower = h.toLowerCase().trim();
+          if (!kwCol && ["keyword", "phrase", "frase", "palabra clave"].some(k => lower.includes(k))) kwCol = i;
+          if (!prioCol && ["priority", "prioridad"].some(k => lower.includes(k))) prioCol = i;
+        });
+        setKeywordCol(kwCol);
+        setPriorityCol(prioCol);
+      },
+      error() {
+        setUploadMessage("Error al leer el archivo CSV");
+      },
+    });
+  }
+
+  async function handleCheckDuplicates() {
+    if (!csvData || keywordCol === null || !siteFilter) return;
+    setDedupLoading(true);
+    try {
+      const phrases = csvData.rows.map(row => row[keywordCol!]).filter(Boolean);
+      const res = await fetch("/api/keywords/check-duplicates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: siteFilter, phrases }),
+      });
+      if (!res.ok) throw new Error("Error al verificar duplicados");
+      const data = await res.json();
+      setDedupResults(data.results ?? []);
+    } catch {
+      setUploadMessage("Error al verificar duplicados");
+    } finally {
+      setDedupLoading(false);
+    }
+  }
+
+  async function handleConfirmImport() {
+    if (!csvData || keywordCol === null || !siteFilter) return;
     setUploading(true);
     setUploadMessage("");
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/upload", {
+      const newKeywords = dedupResults
+        .filter(r => r.status === "new")
+        .map(r => {
+          const rowIdx = csvData.rows.findIndex(row => row[keywordCol!] === r.phrase);
+          return {
+            siteId: siteFilter,
+            phrase: r.phrase,
+            priority: priorityCol != null && rowIdx >= 0 ? parseInt(csvData.rows[rowIdx][priorityCol]) || 0 : 0,
+          };
+        });
+
+      if (newKeywords.length === 0) {
+        setUploadMessage("No hay keywords nuevas para importar");
+        return;
+      }
+
+      const res = await fetch("/api/keywords", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newKeywords),
       });
-      if (!res.ok) throw new Error("Error al subir archivo");
+      if (!res.ok) throw new Error("Error al importar keywords");
       const data = await res.json();
-      setUploadMessage(`Importación exitosa: ${data.created ?? 0} keywords creadas`);
+
+      setImportCount(data.created ?? newKeywords.length);
+      setShowClusterBanner(true);
+      setUploadOpen(false);
+      setCsvData(null);
+      setDedupResults([]);
       fetchKeywords();
     } catch {
-      setUploadMessage("Error al importar archivo");
+      setUploadMessage("Error al importar keywords");
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleAutoGroup() {
+    if (!siteFilter) return;
+    setClusteringLoading(true);
+    try {
+      const res = await fetch("/api/clusters/auto-group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: siteFilter }),
+      });
+      if (!res.ok) throw new Error("Error al agrupar");
+      const data = await res.json();
+      setShowClusterBanner(false);
+      setExpandMessage(`${data.clustersCreated ?? data.clusters ?? 0} clusters creados`);
+    } catch {
+      setExpandMessage("Error al agrupar en clusters");
+    } finally {
+      setClusteringLoading(false);
     }
   }
 
@@ -493,50 +596,165 @@ function KeywordsContent() {
           </Dialog>
 
           {/* Importar CSV */}
-          <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+          <Dialog open={uploadOpen} onOpenChange={(open) => { setUploadOpen(open); if (!open) { setCsvData(null); setDedupResults([]); setUploadMessage(""); } }}>
             <DialogTrigger
               render={
-                <Button variant="outline" size="sm" className="gap-2">
+                <Button variant="outline" size="sm" className="gap-2" disabled={!siteFilter} title={!siteFilter ? "Selecciona un sitio primero" : undefined}>
                   <Upload className="size-4" />
                   Importar CSV
                 </Button>
               }
             />
-            <DialogContent>
+            <DialogContent className="max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Importar keywords desde CSV</DialogTitle>
                 <DialogDescription>
-                  El archivo debe contener columnas: phrase, siteId, priority (opcional)
+                  Sube un archivo CSV, mapea las columnas y revisa duplicados antes de importar.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="csvFile">Archivo CSV</Label>
-                  <Input
-                    id="csvFile"
-                    type="file"
-                    accept=".csv"
-                    ref={fileInputRef}
-                  />
-                </div>
+                {/* Step 1: File upload */}
+                {!csvData && (
+                  <div className="space-y-2">
+                    <Label htmlFor="csvFile">Archivo CSV</Label>
+                    <Input
+                      id="csvFile"
+                      type="file"
+                      accept=".csv"
+                      ref={fileInputRef}
+                      onChange={(e) => handleCsvFileSelect(e.target.files?.[0])}
+                    />
+                  </div>
+                )}
+
+                {/* Step 2: Column mapping + preview */}
+                {csvData && (
+                  <>
+                    {/* Column selectors */}
+                    <div className="flex gap-4">
+                      {csvData.headers.map((header, i) => (
+                        <div key={i} className="flex-1 space-y-1">
+                          <p className="text-xs text-muted-foreground truncate" title={header}>{header}</p>
+                          <Select
+                            value={keywordCol === i ? "keyword" : priorityCol === i ? "priority" : "ignore"}
+                            onValueChange={(v: string | null) => {
+                              if (v === "keyword") {
+                                setKeywordCol(i);
+                                if (priorityCol === i) setPriorityCol(null);
+                              } else if (v === "priority") {
+                                setPriorityCol(i);
+                                if (keywordCol === i) setKeywordCol(null);
+                              } else {
+                                if (keywordCol === i) setKeywordCol(null);
+                                if (priorityCol === i) setPriorityCol(null);
+                              }
+                              setDedupResults([]);
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="keyword">Keyword</SelectItem>
+                              <SelectItem value="priority">Prioridad</SelectItem>
+                              <SelectItem value="ignore">Ignorar</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Dedup summary */}
+                    {dedupResults.length > 0 && (
+                      <div className="flex items-center gap-3 text-sm">
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          {dedupResults.filter(r => r.status === "new").length} nuevas
+                        </Badge>
+                        <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                          {dedupResults.filter(r => r.status !== "new").length} duplicadas
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Preview table */}
+                    <div className="rounded-md border max-h-[300px] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {csvData.headers.map((h, i) => (
+                              <TableHead key={i} className="text-xs">{h}</TableHead>
+                            ))}
+                            {dedupResults.length > 0 && <TableHead className="text-xs">Estado</TableHead>}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {csvData.rows.slice(0, dedupResults.length > 0 ? csvData.rows.length : 5).map((row, ri) => {
+                            const dedup = dedupResults[ri];
+                            return (
+                              <TableRow key={ri} className={dedup && dedup.status !== "new" ? "opacity-50" : ""}>
+                                {row.map((cell, ci) => (
+                                  <TableCell key={ci} className="text-sm py-1.5">{cell}</TableCell>
+                                ))}
+                                {dedupResults.length > 0 && (
+                                  <TableCell className="py-1.5">
+                                    {dedup && (
+                                      <Badge variant="secondary" className={dedup.status === "new" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                                        {dedup.status === "new" ? "Nueva" : "Duplicada"}
+                                      </Badge>
+                                    )}
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    {!dedupResults.length && csvData.rows.length > 5 && (
+                      <p className="text-xs text-muted-foreground">Mostrando 5 de {csvData.rows.length} filas</p>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between gap-2">
+                      <Button variant="outline" size="sm" onClick={() => { setCsvData(null); setDedupResults([]); if (fileInputRef.current) fileInputRef.current.value = ""; }}>
+                        Cambiar archivo
+                      </Button>
+                      <div className="flex gap-2">
+                        {dedupResults.length === 0 ? (
+                          <Button
+                            size="sm"
+                            onClick={handleCheckDuplicates}
+                            disabled={keywordCol === null || dedupLoading}
+                          >
+                            {dedupLoading ? (
+                              <><Loader2 className="size-4 animate-spin mr-1" /> Verificando...</>
+                            ) : (
+                              <><Check className="size-4 mr-1" /> Verificar duplicados</>
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            onClick={handleConfirmImport}
+                            disabled={uploading || dedupResults.filter(r => r.status === "new").length === 0}
+                          >
+                            {uploading ? (
+                              <><Loader2 className="size-4 animate-spin mr-1" /> Importando...</>
+                            ) : (
+                              `Importar ${dedupResults.filter(r => r.status === "new").length} keywords`
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
                 {uploadMessage && (
-                  <p
-                    className={`text-sm ${
-                      uploadMessage.includes("Error")
-                        ? "text-red-600"
-                        : "text-green-600"
-                    }`}
-                  >
+                  <p className={`text-sm ${uploadMessage.includes("Error") ? "text-red-600" : "text-green-600"}`}>
                     {uploadMessage}
                   </p>
                 )}
-                <Button
-                  onClick={handleUpload}
-                  disabled={uploading}
-                  className="w-full"
-                >
-                  {uploading ? "Importando..." : "Importar"}
-                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -592,6 +810,18 @@ function KeywordsContent() {
           </SelectContent>
         </Select>
       </div>
+
+      {showClusterBanner && (
+        <div className="flex items-center gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <span className="text-sm">{importCount} keywords importadas. ¿Agrupar en clusters?</span>
+          <Button size="sm" onClick={handleAutoGroup} disabled={clusteringLoading}>
+            {clusteringLoading ? <><Loader2 className="size-4 animate-spin mr-1" /> Agrupando...</> : "Agrupar"}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setShowClusterBanner(false)}>
+            <X className="size-4" />
+          </Button>
+        </div>
+      )}
 
       {expandMessage && (
         <p className={`text-sm ${expandMessage.includes("Error") || expandMessage.includes("Selecciona") ? "text-red-600" : "text-green-600"}`}>

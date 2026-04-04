@@ -126,6 +126,13 @@ export default function ClustersPage() {
   const [newPillarKeyword, setNewPillarKeyword] = useState("");
   const [newSiteId, setNewSiteId] = useState("");
 
+  // Auto-group state
+  const [autoGrouping, setAutoGrouping] = useState(false);
+  const [autoGroupResult, setAutoGroupResult] = useState<{
+    clusters: { id: string; name: string; keywordCount: number; keywords: string[] }[];
+    duplicates: { phrase1: string; phrase2: string; similarity: number }[];
+  } | null>(null);
+
   // Add post dialog state
   const [addPostOpen, setAddPostOpen] = useState(false);
   const [addPostClusterId, setAddPostClusterId] = useState("");
@@ -186,6 +193,54 @@ export default function ClustersPage() {
       // Error handled silently
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleAutoGroup() {
+    if (!siteFilter) return;
+    setAutoGrouping(true);
+    setAutoGroupResult(null);
+    try {
+      const res = await fetch("/api/clusters/auto-group", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ siteId: siteFilter }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Error al agrupar");
+      }
+      const data = await res.json();
+      setAutoGroupResult(data);
+      fetchClusters();
+    } catch (error) {
+      setAutoGroupResult({
+        clusters: [],
+        duplicates: [],
+      });
+    } finally {
+      setAutoGrouping(false);
+    }
+  }
+
+  async function handleSkipDuplicate(phrase: string, matchedPhrase: string) {
+    try {
+      // Find the keyword by phrase and skip it
+      const res = await fetch(`/api/keywords?siteId=${siteFilter}&phrase=${encodeURIComponent(phrase)}&limit=1`);
+      if (!res.ok) return;
+      const { data } = await res.json();
+      if (data?.[0]) {
+        await fetch(`/api/keywords/${data[0].id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "skipped", skipReason: `Duplicado semántico de: ${matchedPhrase}` }),
+        });
+        setAutoGroupResult((prev) =>
+          prev ? { ...prev, duplicates: prev.duplicates.filter((d) => d.phrase1 !== phrase && d.phrase2 !== phrase) } : null,
+        );
+      }
+    } catch {
+      // Non-fatal
     }
   }
 
@@ -372,15 +427,29 @@ export default function ClustersPage() {
             <HelpCircle className="size-5" />
           </Button>
         </div>
-        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-          <DialogTrigger
-            render={
-              <Button size="sm" className="gap-2">
-                <Plus className="size-4" />
-                Crear cluster
-              </Button>
-            }
-          />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            onClick={handleAutoGroup}
+            disabled={autoGrouping || !siteFilter}
+          >
+            {autoGrouping ? (
+              <><Loader2 className="size-4 animate-spin" /> Agrupando...</>
+            ) : (
+              <><Sparkles className="size-4" /> Auto-agrupar keywords</>
+            )}
+          </Button>
+          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+            <DialogTrigger
+              render={
+                <Button size="sm" className="gap-2">
+                  <Plus className="size-4" />
+                  Crear cluster
+                </Button>
+              }
+            />
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Crear cluster de contenido</DialogTitle>
@@ -435,7 +504,70 @@ export default function ClustersPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+
+      {/* Auto-group results */}
+      {autoGroupResult && (
+        <div className="space-y-3">
+          {autoGroupResult.clusters.length > 0 && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3">
+              <p className="text-sm font-medium text-green-800">
+                {autoGroupResult.clusters.length} clusters creados
+              </p>
+              <ul className="mt-1 text-xs text-green-700">
+                {autoGroupResult.clusters.map((c) => (
+                  <li key={c.id}>• {c.name} ({c.keywordCount} keywords)</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {autoGroupResult.duplicates.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm font-medium text-amber-800">
+                {autoGroupResult.duplicates.length} duplicados semánticos detectados
+              </p>
+              <div className="mt-2 space-y-2">
+                {autoGroupResult.duplicates.map((d, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-amber-700">
+                      &quot;{d.phrase1}&quot; ↔ &quot;{d.phrase2}&quot; ({Math.round(d.similarity * 100)}%)
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-6 text-xs"
+                      onClick={() => handleSkipDuplicate(d.phrase1, d.phrase2)}
+                    >
+                      Omitir
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 text-xs"
+                onClick={() => {
+                  for (const d of autoGroupResult.duplicates) {
+                    handleSkipDuplicate(d.phrase1, d.phrase2);
+                  }
+                }}
+              >
+                Omitir todos
+              </Button>
+            </div>
+          )}
+          {autoGroupResult.clusters.length === 0 && autoGroupResult.duplicates.length === 0 && (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm text-gray-600">No se encontraron keywords pendientes para agrupar.</p>
+            </div>
+          )}
+          <Button size="sm" variant="ghost" onClick={() => setAutoGroupResult(null)}>
+            <X className="size-4 mr-1" /> Cerrar
+          </Button>
+        </div>
+      )}
 
 
       {loading ? (

@@ -129,13 +129,15 @@ model Keyword {
   status     KeywordStatus @default(pending)
   priority   Int           @default(0)
   parentId   String?       @map("parent_id")
+  clusterId  String?       @map("cluster_id")
   skipReason String?       @map("skip_reason")
   trendScore Float?        @map("trend_score")
   createdAt  DateTime      @default(now()) @map("created_at")
 
-  site     Site      @relation(fields: [siteId], references: [id], onDelete: Cascade)
-  parent   Keyword?  @relation("KeywordExpansion", fields: [parentId], references: [id])
-  children Keyword[] @relation("KeywordExpansion")
+  site     Site            @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  parent   Keyword?        @relation("KeywordExpansion", fields: [parentId], references: [id])
+  children Keyword[]       @relation("KeywordExpansion")
+  cluster  ContentCluster? @relation(fields: [clusterId], references: [id], onDelete: SetNull)
 
   @@unique([siteId, phrase])
   @@index([siteId, status])
@@ -279,6 +281,7 @@ model ContentCluster {
 
   site         Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
   clusterPosts ClusterPost[]
+  keywords     Keyword[]
 
   @@map("content_clusters")
 }
