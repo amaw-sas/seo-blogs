@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateAltText } from "./image-generator";
+import { generateAltText, buildImagePrompt } from "./image-generator";
 
 describe("generateAltText", () => {
   const keyword = "marketing digital";
@@ -73,11 +73,70 @@ describe("generateAltText", () => {
     expect(result.length).toBeGreaterThan(10);
   });
 
+  it("does NOT match partial keyword substrings", () => {
+    // "carro" should NOT match "carrotanque"
+    const result = generateAltText("", "carro", true, 0, "Un carrotanque en la carretera");
+    expect(result).toMatch(/^carro —/);
+  });
+
+  it("matches keyword with diacritics stripped", () => {
+    // keyword without accents, context with accents — should match
+    const result = generateAltText("", "alquiler bogota", true, 0, "Alquiler Bogotá con descuento");
+    expect(result).toBe("Alquiler Bogotá con descuento");
+  });
+
   it("different sections produce different alt texts", () => {
     const altHero = generateAltText("", keyword, true, 0, heroContext);
     const altContent = generateAltText("", keyword, false, 1, contentContext);
     expect(altHero).not.toBe(altContent);
     expect(altHero).toBe(heroContext);
     expect(altContent).toBe(`${keyword} — ${contentContext}`);
+  });
+});
+
+// ── buildImagePrompt ───────────────────────────────────────
+
+describe("buildImagePrompt", () => {
+  it("uses documentary photography style for hero", () => {
+    const prompt = buildImagePrompt("Alquiler de carros", "alquiler carro", true);
+    expect(prompt).toContain("Documentary photography");
+    expect(prompt).toContain("Latin American");
+  });
+
+  it("uses documentary photography style for content", () => {
+    const prompt = buildImagePrompt("Precios de alquiler", "alquiler carro", false);
+    expect(prompt).toContain("Documentary photography");
+    expect(prompt).toContain("Landscape composition");
+  });
+
+  it("includes prohibition against documents/text in images", () => {
+    const heroPrompt = buildImagePrompt("Test", "kw", true);
+    const contentPrompt = buildImagePrompt("Test", "kw", false);
+    expect(heroPrompt).toContain("Never depict documents");
+    expect(contentPrompt).toContain("Never depict documents");
+  });
+
+  it("hero uses square composition, content uses landscape", () => {
+    const hero = buildImagePrompt("Test", "kw", true);
+    const content = buildImagePrompt("Test", "kw", false);
+    expect(hero).toContain("square composition");
+    expect(content).toContain("Landscape composition");
+  });
+
+  it("includes interpretation context when provided", () => {
+    const prompt = buildImagePrompt("Test", "kw", true, null, {
+      angle: "Comparativa de precios por zona",
+      intent: "Buscar opciones economicas de alquiler",
+    });
+    expect(prompt).toContain("Comparativa de precios por zona");
+    expect(prompt).toContain("Buscar opciones economicas de alquiler");
+  });
+
+  it("works without interpretation (no undefined/null in output)", () => {
+    const prompt = buildImagePrompt("Test", "kw", true, null, null);
+    expect(prompt).not.toContain("undefined");
+    expect(prompt).not.toContain("null");
+    const prompt2 = buildImagePrompt("Test", "kw", false);
+    expect(prompt2).not.toContain("undefined");
   });
 });

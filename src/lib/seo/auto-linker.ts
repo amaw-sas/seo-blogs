@@ -54,7 +54,7 @@ export async function addRetroactiveLinks(
 
   const related = findRelatedPosts(newPost, existingPosts).slice(0, 5);
 
-  if (related.length < 2) {
+  if (related.length < 1) {
     return { updatedPostIds: [], linksInserted: 0 };
   }
 
@@ -84,7 +84,7 @@ export function addConversionLink(
 ): string {
   if (!conversionUrl) return contentHtml;
 
-  const paragraphs = contentHtml.match(/<p>[^<]+<\/p>/g);
+  const paragraphs = contentHtml.match(/<p>[\s\S]+?<\/p>/g);
   if (!paragraphs || paragraphs.length === 0) return contentHtml;
 
   // Target a paragraph in the middle third of the content
@@ -177,7 +177,7 @@ export async function updateExistingPostsWithLink(
  * Score and rank existing posts by keyword/title relevance to the new post.
  * Uses word overlap as a lightweight similarity signal.
  */
-function findRelatedPosts(
+export function findRelatedPosts(
   newPost: { keyword: string; title: string },
   candidates: RelatedPost[],
 ): RelatedPost[] {
@@ -233,7 +233,7 @@ function insertInternalLink(
   url: string,
   anchorText: string,
 ): string {
-  const paragraphs = html.match(/<p>[^<]+<\/p>/g);
+  const paragraphs = html.match(/<p>[\s\S]+?<\/p>/g);
   if (!paragraphs || paragraphs.length === 0) return html;
 
   // Insert in the last third for contextual relevance

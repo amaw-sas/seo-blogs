@@ -132,4 +132,16 @@ describe("calculateSeoScore", () => {
     const result = calculateSeoScore(makeInput());
     expect(result.readingTimeMinutes).toBeGreaterThanOrEqual(1);
   });
+
+  it("fails meta description longer than 155 chars", () => {
+    const desc156 = "marketing digital " + "a".repeat(138); // 156 chars
+    const result = calculateSeoScore(makeInput({ metaDescription: desc156 }));
+    expect(result.breakdown.metaDescriptionOptimal.pass).toBe(false);
+  });
+
+  it("passes meta description at exactly 155 chars", () => {
+    const desc = "marketing digital " + "a".repeat(137); // 155 chars
+    const result = calculateSeoScore(makeInput({ metaDescription: desc }));
+    expect(result.breakdown.metaDescriptionOptimal.pass).toBe(true);
+  });
 });

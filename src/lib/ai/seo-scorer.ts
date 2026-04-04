@@ -115,7 +115,7 @@ export function calculateSeoScore(post: ScorerInput): SeoScoreResult {
   const metaTitleOk =
     post.metaTitle.length <= 60 && post.metaTitle.toLowerCase().includes(kw);
   const metaDescOk =
-    post.metaDescription.length <= 160 &&
+    post.metaDescription.length <= 155 &&
     post.metaDescription.toLowerCase().includes(kw);
 
   // Schema

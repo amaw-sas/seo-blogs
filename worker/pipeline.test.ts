@@ -83,6 +83,17 @@ vi.mock("./connectors/wordpress", () => ({
 vi.mock("../src/lib/seo/auto-linker", () => ({
   addRetroactiveLinks: vi.fn(),
   addConversionLink: vi.fn(),
+  findRelatedPosts: vi.fn().mockReturnValue([]),
+}));
+
+vi.mock("../src/lib/ai/keyword-interpreter", () => ({
+  interpretKeyword: vi.fn().mockResolvedValue({
+    userIntent: "Test intent",
+    recommendedAngle: "Test angle",
+    businessConnection: "Test connection",
+    suggestedWordRange: { min: 1500, max: 2500 },
+    depth: "medium",
+  }),
 }));
 
 // ── Imports (after mocks) ────────────────────────────────────
@@ -569,6 +580,7 @@ describe("runPipeline — image pool fallback chain", () => {
       1,
       expect.any(Array),
       undefined,
+      expect.objectContaining({ angle: "Test angle", intent: "Test intent" }),
     );
     // costImages reflects 1 generated image
     const logCalls = mockPrisma.publishLog.create.mock.calls;

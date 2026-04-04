@@ -13,6 +13,7 @@ import {
   type GeneratedContent,
 } from "../src/lib/ai/content-generator";
 import { analyzeCompetition, type CompetitionAnalysis } from "../src/lib/ai/competition-analyzer";
+import { interpretKeyword, type KeywordInterpretation } from "../src/lib/ai/keyword-interpreter";
 import { generatePostImages, generateAltText } from "../src/lib/ai/image-generator";
 import {
   getAvailablePoolImages,
@@ -31,7 +32,7 @@ import {
   calculateReadabilityScore,
 } from "../src/lib/seo/metrics";
 import { checkCannibalization } from "./utils/similarity-checker";
-import { addRetroactiveLinks, addConversionLink } from "../src/lib/seo/auto-linker";
+import { addRetroactiveLinks, addConversionLink, findRelatedPosts } from "../src/lib/seo/auto-linker";
 import { categorizePost } from "../src/lib/ai/auto-categorizer";
 import { publishToWordPress, uploadMediaToWordPress, type WpSiteConfig } from "./connectors/wordpress";
 import { publishToNuxtBlog, uploadImageToNuxtBlog, type NuxtBlogSiteConfig } from "./connectors/nuxt-blog";
@@ -101,7 +102,30 @@ export async function runPipeline(
     keyword: keyword.phrase,
   });
 
-  // Step 1.5: Competition analysis (runs once before the retry loop)
+  // Step 1.5: Keyword interpretation (runs once before competition analysis)
+  let keywordInterpretation: KeywordInterpretation | null = null;
+  try {
+    await logStep(siteId, null, "keyword_interpretation", "started");
+    keywordInterpretation = await interpretKeyword(
+      keyword.phrase,
+      site.domain,
+      site.knowledgeBase,
+      siteId,
+    );
+    await logStep(siteId, null, "keyword_interpretation", "success", {
+      intent: keywordInterpretation.userIntent,
+      depth: keywordInterpretation.depth,
+      wordRange: keywordInterpretation.suggestedWordRange,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await logStep(siteId, null, "keyword_interpretation", "failed", {
+      error: message,
+    });
+    // Non-fatal: proceed without interpretation
+  }
+
+  // Step 1.75: Competition analysis (runs once before the retry loop)
   let competitionAnalysis: CompetitionAnalysis | null = null;
   try {
     await logStep(siteId, null, "competition_analysis", "started");
@@ -132,6 +156,7 @@ export async function runPipeline(
     tags: string[];
     schema: Record<string, unknown>;
     seoScore: number;
+    isShortFallback?: boolean;
   } | null = null;
 
   const MAX_ATTEMPTS = 3;
@@ -146,12 +171,12 @@ export async function runPipeline(
       await logStep(siteId, null, "outline_generation", "started", {
         attempt: attempts,
       });
-      const outline = await generateOutline(keyword.phrase, siteConfig, competitionAnalysis ?? undefined, siteId);
+      const outline = await generateOutline(keyword.phrase, siteConfig, competitionAnalysis ?? undefined, siteId, keywordInterpretation);
       await logStep(siteId, null, "outline_generation", "success");
 
       // Step 3: Generate content
       await logStep(siteId, null, "content_generation", "started");
-      const content = await generateContent(outline, keyword.phrase, siteConfig, siteId);
+      const content = await generateContent(outline, keyword.phrase, siteConfig, siteId, keywordInterpretation);
 
       // Enforce minimum word count — reject and retry if too short
       if (content.wordCount < siteConfig.minWords) {
@@ -177,6 +202,31 @@ export async function runPipeline(
         continue;
       }
 
+      // Enforce keyword in first 100 words — reject and retry if missing
+      const plainForKwCheck = content.html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const first100Words = plainForKwCheck.split(/\s+/).slice(0, 100).join(" ");
+      const kwNormalized = keyword.phrase.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const first100Normalized = first100Words.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      if (!first100Normalized.includes(kwNormalized)) {
+        await logStep(siteId, null, "content_generation", "failed", {
+          wordCount: content.wordCount,
+          reason: `Keyword "${keyword.phrase}" not found in first 100 words`,
+        });
+
+        if (!bestShortContent || content.wordCount > bestShortContent.content.wordCount) {
+          bestShortContent = { outline, content };
+        }
+
+        if (attempts < MAX_ATTEMPTS) {
+          await logStep(siteId, null, "regeneration", "started", {
+            reason: `Keyword missing from first 100 words`,
+            attempt: attempts + 1,
+          });
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+        }
+        continue;
+      }
+
       await logStep(siteId, null, "content_generation", "success", {
         wordCount: content.wordCount,
       });
@@ -197,12 +247,16 @@ export async function runPipeline(
       const sectionContexts = nonFaqSections
         .slice(midSectionIdx, midSectionIdx + 2)
         .map((s) => s.text);
+      const imageInterpretation = keywordInterpretation
+        ? { angle: keywordInterpretation.recommendedAngle, intent: keywordInterpretation.userIntent }
+        : null;
       const { images, costImages } = await generateAndUploadImages(
         heroContext,
         keyword.phrase,
         siteId,
         sectionContexts,
         siteConfig.knowledgeBase,
+        imageInterpretation,
       );
       await logStep(siteId, null, "image_generation", "success", {
         count: images.length,
@@ -213,12 +267,12 @@ export async function runPipeline(
       const slug = generateSlug(keyword.phrase);
       const metaTitle = outline.metaTitle
         ? outline.metaTitle.slice(0, 60)
-        : truncate(`${keyword.phrase} | ${site.name}`, 60);
+        : truncate(keyword.phrase, 60);
       const metaDescription = content.metaDescription
         ? content.metaDescription.slice(0, 155)
         : truncate(
             generateMetaDescription(content.html, keyword.phrase),
-            160,
+            155,
           );
       const tags = extractTags(outline, keyword.phrase);
 
@@ -339,14 +393,17 @@ export async function runPipeline(
       .filter((s) => !/faq|preguntas frecuentes/i.test(s.text))
       .slice(Math.floor(outline.sections.length * 0.6))
       .map((s) => s.text);
-    const { images } = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections, siteConfig.knowledgeBase);
+    const fallbackInterpretation = keywordInterpretation
+      ? { angle: keywordInterpretation.recommendedAngle, intent: keywordInterpretation.userIntent }
+      : null;
+    const { images } = await generateAndUploadImages(outline.h1, keyword.phrase, siteId, fallbackSections, siteConfig.knowledgeBase, fallbackInterpretation);
     const slug = generateSlug(keyword.phrase);
     const metaTitle = outline.metaTitle
       ? outline.metaTitle.slice(0, 60)
-      : truncate(`${keyword.phrase} | ${site.name}`, 60);
+      : truncate(keyword.phrase, 60);
     const metaDescription = content.metaDescription
       ? content.metaDescription.slice(0, 155)
-      : truncate(generateMetaDescription(content.html, keyword.phrase), 160);
+      : truncate(generateMetaDescription(content.html, keyword.phrase), 155);
     const tags = extractTags(outline, keyword.phrase);
     const schema = generateArticleSchema(
       {
@@ -375,7 +432,13 @@ export async function runPipeline(
       wordCount: content.wordCount, faqItems: content.faqItems,
       images, links, metaTitle, metaDescription, slug, tags, schema,
       seoScore: scoreResult.totalScore,
+      isShortFallback: true,
     };
+    await logStep(siteId, null, "word_count_fallback", "failed", {
+      wordCount: content.wordCount,
+      minWords: siteConfig.minWords,
+      reason: `Content too short: ${content.wordCount} words < ${siteConfig.minWords} after ${MAX_ATTEMPTS} attempts — saving as error`,
+    });
     attempts = MAX_ATTEMPTS;
   }
 
@@ -414,7 +477,7 @@ export async function runPipeline(
       wordCount: bestResult.wordCount,
       charCount: bestResult.html.replace(/<[^>]+>/g, "").length,
       readingTimeMinutes: readingTime,
-      status: "review",
+      status: bestResult.isShortFallback ? "error" : "review",
       images: {
         create: bestResult.images.map((img, idx) => ({
           url: img.url,
@@ -557,7 +620,8 @@ export async function runPipeline(
   }
 
   // Step 12: Publish to WordPress (if site has WP credentials)
-  if (site.platform === "wordpress" && site.apiUrl && site.apiUser && site.apiPassword) {
+  // Skip auto-publish for posts that failed quality checks (short content fallback)
+  if (!bestResult.isShortFallback && site.platform === "wordpress" && site.apiUrl && site.apiUser && site.apiPassword) {
     try {
       await logStep(siteId, post.id, "wordpress_publish", "started");
 
@@ -620,7 +684,7 @@ export async function runPipeline(
   }
 
   // Step 12b: Publish to Nuxt Blog (if site has nuxt-blog credentials)
-  if (site.platform === "nuxt-blog" && site.apiUrl && site.apiPassword) {
+  if (!bestResult.isShortFallback && site.platform === "nuxt-blog" && site.apiUrl && site.apiPassword) {
     try {
       await logStep(siteId, post.id, "nuxt_publish", "started");
 
@@ -781,6 +845,7 @@ async function generateAndUploadImages(
   siteId: string,
   sectionContexts?: string[],
   knowledgeBase?: string | null,
+  interpretation?: { angle: string; intent: string } | null,
 ): Promise<{ images: UploadedImage[]; costImages: number }> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -827,7 +892,7 @@ async function generateAndUploadImages(
   let remaining = needed - uploaded.length;
   if (remaining > 0) {
     try {
-      const rawImages = await generatePostImages(title, keyword, remaining, sectionContexts, knowledgeBase);
+      const rawImages = await generatePostImages(title, keyword, remaining, sectionContexts, knowledgeBase, interpretation);
       for (let i = 0; i < rawImages.length; i++) {
         const img = rawImages[i];
         const timestamp = Date.now();
@@ -926,20 +991,24 @@ interface PostLink {
 }
 
 function buildLinks(
-  existingPosts: { slug: string; title: string; keyword: string }[],
+  existingPosts: { id: string; slug: string; title: string; keyword: string }[],
   siteConfig: SiteConfig,
   currentKeyword: string,
 ): PostLink[] {
   const links: PostLink[] = [];
 
-  // Internal links: pick up to 3 related existing posts
-  const relatedPosts = existingPosts
+  // Internal links: pick up to 3 related existing posts using relevance scoring
+  const candidates = existingPosts
     .filter((p) => p.keyword !== currentKeyword)
-    .slice(0, 3);
+    .map((p) => ({ ...p, contentHtml: "" }));
+  const relatedPosts = findRelatedPosts(
+    { keyword: currentKeyword, title: currentKeyword },
+    candidates,
+  ).slice(0, 3);
 
   for (const post of relatedPosts) {
     links.push({
-      url: `/blog/${post.slug}`,
+      url: `https://${siteConfig.domain}/${post.slug}`,
       anchorText: post.keyword,
       type: "internal",
     });
@@ -988,7 +1057,7 @@ function insertImagesIntoHtml(
       .slice(1)
       .map(
         (img) =>
-          `<figure><img src="${img.url}" alt="${img.altText}" width="${img.width}" height="${img.height}" loading="lazy" /></figure>`,
+          `<figure style="max-width:400px;width:100%"><img src="${img.url}" alt="${img.altText}" width="${img.width}" height="${img.height}" loading="lazy" /></figure>`,
       )
       .join("\n");
 
@@ -1025,7 +1094,7 @@ function insertLinksIntoHtml(html: string, links: PostLink[]): string {
   let result = html;
 
   // Find paragraphs and distribute links across them
-  const paragraphs = result.match(/<p>[^<]+<\/p>/g) ?? [];
+  const paragraphs = result.match(/<p>[\s\S]+?<\/p>/g) ?? [];
   const paragraphCount = paragraphs.length;
 
   if (paragraphCount === 0) return result;

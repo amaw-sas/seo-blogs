@@ -6,6 +6,7 @@
 import TurndownService from "turndown";
 import { chatCompletion } from "./openai-client";
 import { buildPrompt } from "./prompt-builder";
+import type { KeywordInterpretation } from "./keyword-interpreter";
 
 const turndown = new TurndownService({
   headingStyle: "atx",
@@ -62,7 +63,21 @@ export async function generateOutline(
   siteConfig: SiteConfig,
   competitionAnalysis?: CompetitionInsights,
   siteId?: string,
+  keywordInterpretation?: KeywordInterpretation | null,
 ): Promise<PostOutline> {
+  const interpretationContext = keywordInterpretation
+    ? `
+
+Interpretacion de la keyword:
+- Intencion del usuario: ${keywordInterpretation.userIntent}
+- Angulo recomendado: ${keywordInterpretation.recommendedAngle}
+- Conexion con el negocio: ${keywordInterpretation.businessConnection}
+- Profundidad sugerida: ${keywordInterpretation.depth} (${keywordInterpretation.suggestedWordRange.min}-${keywordInterpretation.suggestedWordRange.max} palabras)
+
+IMPORTANTE: El outline DEBE reflejar el angulo recomendado y la intencion del usuario. No generes contenido generico — enfocate en lo que el usuario realmente busca.
+`
+    : "";
+
   const competitionContext = competitionAnalysis
     ? `
 
@@ -85,6 +100,7 @@ Usa esta informacion para crear un outline SUPERIOR a la competencia. Cubre los 
       keyword,
       knowledgeBaseBlock: siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : "",
       competitionContext,
+      interpretationContext,
     });
     prompt = result.prompt;
     maxTokens = result.maxTokens;
@@ -94,7 +110,7 @@ Usa esta informacion para crear un outline SUPERIOR a la competencia. Cubre los 
     prompt = `Eres un experto en SEO y redaccion de contenido en espanol.
 
 Genera un outline detallado para un articulo de blog optimizado para la keyword: "${keyword}"
-${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : ""}${competitionContext}
+${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO:\n${siteConfig.knowledgeBase}\n` : ""}${interpretationContext}${competitionContext}
 
 REGLAS DE SEO APRENDIDAS (basadas en analisis de posts con alta puntuacion SEO):
 
@@ -102,7 +118,7 @@ TITULO Y SLUG:
 - H1: keyword AL INICIO del titulo, seguida de ":" y un modificador descriptivo. MAXIMO 60 caracteres.
   BUENOS: "Renta autos Cartagena: guia para recorrer la ciudad", "Alquiler carro Cali barato: tips reales para ahorrar"
   MALOS: "Guia Completa sobre los Documentos Necesarios para Rentar un Carro en Bogota" (largo, keyword enterrada)
-- metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), keyword al inicio
+- metaTitle: version optimizada para CTR del H1, MAXIMO 60 caracteres, keyword al inicio
 - El slug se generara automaticamente del keyword (3-5 palabras, sin stopwords). NO incluir "guia-completa", "descubre", "todo-lo-que-debes-saber" en el titulo.
 
 ESTRUCTURA DE HEADINGS:
@@ -125,7 +141,7 @@ RELEVANCIA TEMATICA:
 Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
 {
   "h1": "string (max 60 chars, keyword al inicio)",
-  "metaTitle": "string (max 45 chars, keyword al inicio, optimizado para CTR)",
+  "metaTitle": "string (max 60 chars, keyword al inicio, optimizado para CTR)",
   "sections": [
     {
       "tag": "h2",
@@ -153,9 +169,9 @@ Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
     outline.h1 = lastSpace > 20 ? truncated.slice(0, lastSpace) : truncated;
   }
 
-  // Ensure metaTitle exists and is short enough for " | Brand" suffix (~15 chars)
-  if (!outline.metaTitle || outline.metaTitle.length > 45) {
-    outline.metaTitle = outline.h1.slice(0, 45).trimEnd();
+  // Ensure metaTitle exists and fits within 60 chars
+  if (!outline.metaTitle || outline.metaTitle.length > 60) {
+    outline.metaTitle = outline.h1.slice(0, 60).trimEnd();
   }
 
   // Remove any H2 that duplicates the H1 (LLM sometimes generates this)
@@ -181,6 +197,7 @@ export async function generateContent(
   keyword: string,
   siteConfig: SiteConfig,
   siteId?: string,
+  keywordInterpretation?: KeywordInterpretation | null,
 ): Promise<GeneratedContent> {
   const outlineText = formatOutlineForPrompt(outline);
 
@@ -188,6 +205,10 @@ export async function generateContent(
     ? "- Incluir al menos 1 tabla HTML (<table>) comparativa por articulo (ej: precios, requisitos, opciones). Usar <thead> y <tbody>."
     : "- NO uses tablas HTML (<table>) — PROHIBIDO. DEBES incluir al menos 1 lista comparativa <ul> con <strong> en cada <li>. Formato: <ul><li><strong>Opcion A:</strong> detalle</li><li><strong>Opcion B:</strong> detalle</li></ul>. Adapta al tema. Sin lista comparativa = RECHAZADO.";
   const formatoElemento = siteConfig.platform === "wordpress" ? "tablas" : "listas comparativas";
+
+  const contentInterpretationContext = keywordInterpretation
+    ? `\nINTERPRETACION DE LA KEYWORD:\n- El usuario busca: ${keywordInterpretation.userIntent}\n- Angulo del articulo: ${keywordInterpretation.recommendedAngle}\n- Conexion con el negocio: ${keywordInterpretation.businessConnection}\nESCRIBE el articulo con este angulo y enfoque. No ignores esta interpretacion.\n`
+    : "";
 
   let prompt: string;
   let maxTokens = 16000;
@@ -204,6 +225,7 @@ export async function generateContent(
       faqCount: outline.faqQuestions.length,
       formatoReglas,
       formatoElemento,
+      interpretationContext: contentInterpretationContext,
     });
     prompt = result.prompt;
     maxTokens = result.maxTokens;
@@ -217,7 +239,7 @@ Escribe un articulo completo basado en este outline:
 ${outlineText}
 
 Keyword principal: "${keyword}"
-${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO (usa esta informacion para hacer el contenido mas especifico y relevante):\n${siteConfig.knowledgeBase}\n` : ""}
+${siteConfig.knowledgeBase ? `\nCONTEXTO DEL NEGOCIO (usa esta informacion para hacer el contenido mas especifico y relevante):\n${siteConfig.knowledgeBase}\n` : ""}${contentInterpretationContext}
 REGLAS SEO CRITICAS (aprendidas de posts con alta puntuacion en Yoast/RankMath):
 
 KEYWORD PLACEMENT (el plugin SEO evalua cada uno de estos):
@@ -243,6 +265,8 @@ ${formatoReglas}
 - OBLIGATORIO: Incluir exactamente 1 <blockquote> con una frase destacada (dato clave, consejo memorable o estadistica). Ejemplo: <blockquote>Reservar con 2 semanas de anticipacion puede ahorrarte hasta un 40% en temporada alta.</blockquote>. Si no incluyes blockquote, el articulo sera RECHAZADO.
 - Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
 - Variar estructura entre secciones: parrafos narrativos, ${formatoElemento}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
+- Puedes usar <figure><figcaption> para datos destacados con fuente (ej: <figure><blockquote>Dato importante</blockquote><figcaption>Fuente: Secretaria de Transito</figcaption></figure>). Maximo 1-2 por articulo.
+- Puedes usar <hr> como separador visual entre secciones tematicamente distintas. Maximo 1-2 por articulo. No usar antes de FAQ ni antes de Conclusion.
 
 SECCION FAQ:
 - ${outline.faqQuestions.length} preguntas y respuestas detalladas

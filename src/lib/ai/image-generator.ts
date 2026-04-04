@@ -30,15 +30,17 @@ export async function generatePostImages(
   count: number = 2,
   sectionContexts?: string[],
   knowledgeBase?: string | null,
+  interpretation?: { angle: string; intent: string } | null,
 ): Promise<GeneratedImage[]> {
   const images: GeneratedImage[] = [];
 
   for (let i = 0; i < count; i++) {
     const isHero = i === 0;
     const context = isHero ? title : (sectionContexts?.[i - 1] ?? title);
-    const prompt = buildImagePrompt(context, keyword, isHero, knowledgeBase);
+    const prompt = buildImagePrompt(context, keyword, isHero, knowledgeBase, interpretation);
+    const size = isHero ? "1024x1024" : "1536x1024";
 
-    const rawBuffer = await generateRawImage(prompt);
+    const rawBuffer = await generateRawImage(prompt, size);
     const compressed = isHero ? await compressHero(rawBuffer) : await compressContent(rawBuffer);
     const metadata = await sharp(compressed).metadata();
     const altText = generateAltText("", keyword, isHero, i, context);
@@ -66,13 +68,16 @@ export async function generateSingleImage(prompt: string): Promise<Buffer> {
 /**
  * Generate a raw image buffer using GPT Image 1 Mini.
  */
-async function generateRawImage(prompt: string): Promise<Buffer> {
+async function generateRawImage(
+  prompt: string,
+  size: "1024x1024" | "1536x1024" | "1024x1536" = "1024x1024",
+): Promise<Buffer> {
   const client = getClient();
   const response = await client.images.generate({
     model: "gpt-image-1",
     prompt,
     n: 1,
-    size: "1024x1024",
+    size,
     quality: "medium",
   });
 
@@ -92,15 +97,22 @@ export function generateAltText(
   _index: number,
   context: string,
 ): string {
-  // Alt text must include the keyword naturally for SEO plugin compliance.
+  // Alt text must include the keyword as an exact phrase for SEO plugin compliance.
+  // Uses word boundaries to avoid partial substring matches (e.g. "carro" matching "carrotanque").
   const trimmedContext = context.trim();
-  const keywordLower = keyword.toLowerCase();
+  const normalize = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+  const kwNorm = normalize(keyword);
+  // Word-boundary regex: \b doesn't work well with Spanish diacritics, so use lookaround on \s and ^/$
+  const kwPattern = new RegExp(`(?:^|\\s)${kwNorm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s|$)`);
 
   if (trimmedContext) {
-    const contextLower = trimmedContext.toLowerCase();
-    if (contextLower.includes(keywordLower)) {
+    const contextNorm = normalize(trimmedContext);
+    if (kwPattern.test(contextNorm)) {
       return trimmedContext.length > 100 ? trimmedContext.slice(0, 100).trimEnd() : trimmedContext;
     }
+    // Keyword not found as exact phrase — force "{keyword} — {context}" format
     const combined = `${keyword} — ${trimmedContext}`;
     return combined.length > 100 ? combined.slice(0, 100).trimEnd() : combined;
   }
@@ -115,15 +127,17 @@ export function buildImagePrompt(
   keyword: string,
   isHero: boolean,
   knowledgeBase?: string | null,
+  interpretation?: { angle: string; intent: string } | null,
 ): string {
-  const noOverlays = "Absolutely nothing written, printed, or displayed in the image. No signs, banners, screens, posters, people, hands, or cameras.";
-  // knowledgeBase is NOT injected into image prompts — it often contains brand names
-  // (Kia, Chevrolet, Toyota, etc.) that the API rejects as trademark violations.
-  const kbContext = "";
+  const style = "Documentary photography, candid, realistic, slightly imperfect framing. Latin American urban/rural context.";
+  const prohibition = "Never depict documents, IDs, licenses, certificates, or any surface with text. Show the contextual scene instead. No signs, banners, screens, posters, people, hands, or cameras.";
+  const interpretationContext = interpretation
+    ? ` The article's angle: ${interpretation.angle}. The user is looking for: ${interpretation.intent}.`
+    : "";
 
   if (isHero) {
-    return `A photograph that visually represents: "${context}". The image should directly illustrate this specific topic — not a generic landscape.${kbContext} Warm natural light, vivid colors, travel magazine quality. Balanced square composition. ${noOverlays}`;
+    return `A photograph that visually represents: "${context}".${interpretationContext} ${style} Warm natural light, vivid colors. Balanced square composition. ${prohibition}`;
   }
 
-  return `A detailed photograph that illustrates: "${context}". The image should show a specific scene, object, or environment directly related to this topic.${kbContext} Natural light, warm tones, shallow focus, editorial quality. Centered square composition. ${noOverlays}`;
+  return `A detailed photograph that illustrates: "${context}".${interpretationContext} ${style} Natural light, warm tones, shallow depth of field. Landscape composition. ${prohibition}`;
 }

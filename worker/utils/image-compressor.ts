@@ -18,7 +18,7 @@ const HERO_PRESET: CompressOptions = {
 
 const CONTENT_PRESET: CompressOptions = {
   maxSizeKB: 40,
-  maxWidth: 800,
+  maxWidth: 768,
   initialQuality: 35,
 };
 

@@ -41,7 +41,7 @@ REGLAS DE SEO APRENDIDAS (basadas en analisis de posts con alta puntuacion SEO):
 - H1: keyword AL INICIO del titulo, seguida de ":" y un modificador descriptivo. MAXIMO 60 caracteres.
   BUENOS: "Renta autos Cartagena: guia para recorrer la ciudad", "Alquiler carro Cali barato: tips reales para ahorrar"
   MALOS: "Guia Completa sobre los Documentos Necesarios para Rentar un Carro en Bogota" (largo, keyword enterrada)
-- metaTitle: version optimizada para CTR del H1, MAXIMO 45 caracteres (el sitio agrega " | Marca" despues), keyword al inicio
+- metaTitle: version optimizada para CTR del H1, MAXIMO 60 caracteres, keyword al inicio
 - El slug se generara automaticamente del keyword (3-5 palabras, sin stopwords). NO incluir "guia-completa", "descubre", "todo-lo-que-debes-saber" en el titulo.`,
       active: true,
     },
@@ -72,7 +72,7 @@ REGLAS DE SEO APRENDIDAS (basadas en analisis de posts con alta puntuacion SEO):
   responseFormat: `Responde SOLO con JSON valido (sin markdown code fences) con esta estructura:
 {
   "h1": "string (max 60 chars, keyword al inicio)",
-  "metaTitle": "string (max 45 chars, keyword al inicio, optimizado para CTR)",
+  "metaTitle": "string (max 60 chars, keyword al inicio, optimizado para CTR)",
   "sections": [
     {
       "tag": "h2",
@@ -133,7 +133,9 @@ REGLAS SEO CRITICAS (aprendidas de posts con alta puntuacion en Yoast/RankMath):
 {{formatoReglas}}
 - OBLIGATORIO: Incluir exactamente 1 <blockquote> con una frase destacada (dato clave, consejo memorable o estadistica). Ejemplo: <blockquote>Reservar con 2 semanas de anticipacion puede ahorrarte hasta un 40% en temporada alta.</blockquote>. Si no incluyes blockquote, el articulo sera RECHAZADO.
 - Al menos 2-3 secciones H3 deben tener 2-3 parrafos de desarrollo real (no una oracion y fuera).
-- Variar estructura entre secciones: parrafos narrativos, {{formatoElemento}}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.`,
+- Variar estructura entre secciones: parrafos narrativos, {{formatoElemento}}, listas cortas, blockquotes, tips numerados. NUNCA dos secciones consecutivas con el mismo formato.
+- Puedes usar <figure><figcaption> para datos destacados con fuente (ej: <figure><blockquote>Dato importante</blockquote><figcaption>Fuente: Secretaria de Transito</figcaption></figure>). Maximo 1-2 por articulo.
+- Puedes usar <hr> como separador visual entre secciones tematicamente distintas. Maximo 1-2 por articulo. No usar antes de FAQ ni antes de Conclusion.`,
       active: true,
     },
     seccion_faq: {
@@ -196,14 +198,15 @@ Context of the section: "{{context}}"`,
   promptSections: {
     prompt_style: {
       label: "Image Style",
-      content: `Hero image: A photograph that visually represents: "{{context}}". The image should directly illustrate this specific topic — not a generic landscape. Warm natural light, vivid colors, travel magazine quality. Balanced square composition.
-Detail image: A detailed photograph that illustrates: "{{context}}". The image should show a specific scene, object, or environment directly related to this topic. Natural light, warm tones, shallow focus, editorial quality. Centered square composition.`,
+      content: `Documentary photography, candid, realistic, slightly imperfect framing. Latin American urban/rural context.
+Hero image: A photograph that visually represents: "{{context}}". Warm natural light, vivid colors. Balanced square composition.
+Detail image: A detailed photograph that illustrates: "{{context}}". Natural light, warm tones, shallow depth of field. Landscape composition.`,
       active: true,
     },
     prohibitions: {
       label: "Prohibitions",
       content:
-        "Absolutely nothing written, printed, or displayed in the image. No signs, banners, screens, posters, people, hands, or cameras.",
+        "Never depict documents, IDs, licenses, certificates, or any surface with text. Show the contextual scene instead. No signs, banners, screens, posters, people, hands, or cameras.",
       active: true,
     },
   },
@@ -233,6 +236,57 @@ Reglas:
   "categorySlug": "string",
   "categoryName": "string",
   "isNew": boolean
+}`,
+};
+
+// keyword-interpreter.ts (NEW)
+const KEYWORD_INTERPRETATION = {
+  promptBase: `Eres un experto en SEO y estrategia de contenido en espanol.
+
+Analiza la siguiente keyword y determina la intencion del usuario, el angulo recomendado para el articulo, y como conectar el contenido con el negocio.
+
+Keyword: "{{keyword}}"
+Dominio del sitio: {{domain}}
+{{knowledgeBaseBlock}}
+
+Tu objetivo es interpretar QUE busca el usuario con esta keyword y COMO debemos enfocar el articulo para que sea util y relevante.`,
+  promptSections: {
+    intencion: {
+      label: "Análisis de Intención",
+      content: `ANALISIS DE INTENCION:
+- Determina si la intencion es informacional, transaccional, navegacional o mixta
+- Identifica la pregunta implicita del usuario
+- Si la keyword es coloquial o local, interpreta el significado real (ej: "carro barato bogota" = "opciones economicas de alquiler de vehiculo en Bogota")
+- Considera el contexto del dominio para la interpretacion`,
+      active: true,
+    },
+    angulo: {
+      label: "Ángulo Recomendado",
+      content: `ANGULO RECOMENDADO:
+- Sugiere un angulo especifico y diferenciador para el articulo
+- El angulo debe ser practico y accionable, no generico
+- Debe conectar con la experiencia real del usuario
+- Evitar angulos genericos como "guia completa" o "todo lo que debes saber"`,
+      active: true,
+    },
+    profundidad: {
+      label: "Profundidad Sugerida",
+      content: `PROFUNDIDAD Y LONGITUD:
+- Basandote en la complejidad del tema y la intencion del usuario, recomienda:
+  - depth: "light" (500-1000 palabras) para keywords simples/transaccionales directas
+  - depth: "medium" (1500-2500 palabras) para keywords informacionales estandar
+  - depth: "deep" (2500-4000 palabras) para keywords complejas/comparativas/guias
+- Sugiere un rango de palabras especifico (min, max)`,
+      active: true,
+    },
+  },
+  responseFormat: `Responde SOLO con JSON valido (sin markdown code fences):
+{
+  "userIntent": "string — que busca el usuario con esta keyword",
+  "recommendedAngle": "string — angulo especifico para el articulo",
+  "businessConnection": "string — como conectar con el negocio/servicio del sitio",
+  "suggestedWordRange": { "min": number, "max": number },
+  "depth": "light" | "medium" | "deep"
 }`,
 };
 
@@ -270,11 +324,26 @@ const steps: StepData[] = [
     temperature: null,
   },
   {
+    stepKey: "keyword_interpretation",
+    label: "Interpretación de Keyword",
+    description:
+      "Analiza la keyword para determinar intención del usuario, ángulo recomendado, conexión con el negocio y profundidad sugerida.",
+    order: 2,
+    active: true,
+    hasPrompt: true,
+    promptBase: KEYWORD_INTERPRETATION.promptBase,
+    promptSections: KEYWORD_INTERPRETATION.promptSections,
+    responseFormat: KEYWORD_INTERPRETATION.responseFormat,
+    model: "gpt-4.1",
+    maxTokens: 1000,
+    temperature: null,
+  },
+  {
     stepKey: "competition_analysis",
     label: "Análisis de Competencia",
     description:
       "Analiza la estructura de contenido que ranquea en Google para la keyword y devuelve insights sobre temas comunes, brechas y ángulo diferenciador.",
-    order: 2,
+    order: 3,
     active: true,
     hasPrompt: true,
     promptBase: COMPETITION_ANALYSIS.promptBase,
@@ -289,7 +358,7 @@ const steps: StepData[] = [
     label: "Generación de Outline",
     description:
       "Genera el outline del artículo: H1, metaTitle, secciones H2/H3, preguntas FAQ y conclusión, optimizado para SEO.",
-    order: 3,
+    order: 4,
     active: true,
     hasPrompt: true,
     promptBase: OUTLINE_GENERATION.promptBase,
@@ -304,7 +373,7 @@ const steps: StepData[] = [
     label: "Generación de Contenido",
     description:
       "Genera el artículo HTML completo a partir del outline, con keyword placement, FAQ, formato variado y reglas SEO estrictas.",
-    order: 4,
+    order: 5,
     active: true,
     hasPrompt: true,
     promptBase: CONTENT_GENERATION.promptBase,
@@ -319,7 +388,7 @@ const steps: StepData[] = [
     label: "Generación de Imágenes",
     description:
       "Construye prompts de imagen y genera imágenes hero + detalle para el artículo usando GPT Image 1 Mini.",
-    order: 5,
+    order: 6,
     active: true,
     hasPrompt: true,
     promptBase: IMAGE_GENERATION.promptBase,
@@ -334,7 +403,7 @@ const steps: StepData[] = [
     label: "Puntuación SEO",
     description:
       "Calcula métricas SEO del post generado: densidad de keyword, distribución, conteo de palabras, imágenes, links y presencia de FAQ/schema.",
-    order: 6,
+    order: 7,
     active: true,
     hasPrompt: false,
     promptBase: null,
@@ -349,7 +418,7 @@ const steps: StepData[] = [
     label: "Guardar Post",
     description:
       "Persiste el post generado en la base de datos con status draft, incluyendo HTML, meta description, imágenes y métricas SEO.",
-    order: 7,
+    order: 8,
     active: true,
     hasPrompt: false,
     promptBase: null,
@@ -364,7 +433,7 @@ const steps: StepData[] = [
     label: "Categorización Automática",
     description:
       "Clasifica el post en una categoría existente o sugiere una nueva, basándose en título y keyword.",
-    order: 8,
+    order: 9,
     active: true,
     hasPrompt: true,
     promptBase: AUTO_CATEGORIZATION.promptBase,
@@ -379,7 +448,7 @@ const steps: StepData[] = [
     label: "Enlaces Automáticos",
     description:
       "Inserta internal links contextuales hacia otros posts publicados del mismo sitio, con anchor text relevante.",
-    order: 9,
+    order: 10,
     active: true,
     hasPrompt: false,
     promptBase: null,
@@ -394,7 +463,7 @@ const steps: StepData[] = [
     label: "Publicación",
     description:
       "Publica el post al blog externo via el conector configurado (WordPress REST API o custom) y actualiza el status a published.",
-    order: 10,
+    order: 11,
     active: true,
     hasPrompt: false,
     promptBase: null,
